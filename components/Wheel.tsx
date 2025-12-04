@@ -16,13 +16,91 @@ interface TooltipData {
   y: number;
 }
 
+// Helper to adjust color for different rings - makes inner rings lighter
+const adjustColorForRing = (hexColor: string, ringIndex: number, totalRings: number): string => {
+  // Convert hex to RGB
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Convert RGB to HSL
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
+      case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
+      case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
+    }
+  }
+
+  // Adjust lightness based on ring position
+  // Inner rings (lower index) get lighter, outer rings get more saturated
+  const lightnessBoost = (totalRings - 1 - ringIndex) * 0.08; // More boost for inner rings
+  const saturationBoost = ringIndex * 0.1; // More saturation for outer rings
+
+  const newL = Math.min(0.85, l + lightnessBoost);
+  const newS = Math.min(1, s + saturationBoost);
+
+  // Convert back to RGB
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+
+  let rNew, gNew, bNew;
+  if (newS === 0) {
+    rNew = gNew = bNew = newL;
+  } else {
+    const q = newL < 0.5 ? newL * (1 + newS) : newL + newS - newL * newS;
+    const p = 2 * newL - q;
+    rNew = hue2rgb(p, q, h + 1/3);
+    gNew = hue2rgb(p, q, h);
+    bNew = hue2rgb(p, q, h - 1/3);
+  }
+
+  const toHex = (c: number) => {
+    const hex = Math.round(c * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+
+  return `#${toHex(rNew)}${toHex(gNew)}${toHex(bNew)}`;
+};
+
+const ZOOM_LEVELS = [0.6, 0.8, 1.0, 1.2, 1.5];
+const ZOOM_LABELS = ['60%', '80%', '100%', '120%', '150%'];
+
 const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityClick }) => {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [selectedFocusAreaId, setSelectedFocusAreaId] = useState<string | null>(null);
+  const [zoomIndex, setZoomIndex] = useState(2); // Default to 100%
+
+  const zoom = ZOOM_LEVELS[zoomIndex];
 
   // Handle focus area click - toggle selection
   const handleFocusAreaClick = (focusAreaId: string) => {
     setSelectedFocusAreaId(prev => prev === focusAreaId ? null : focusAreaId);
+  };
+
+  const handleZoomIn = () => {
+    setZoomIndex(prev => Math.min(prev + 1, ZOOM_LEVELS.length - 1));
+  };
+
+  const handleZoomOut = () => {
+    setZoomIndex(prev => Math.max(prev - 1, 0));
   };
 
   // Filter activities based on selected focus area
@@ -109,17 +187,22 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
   // Calculate radii for each concept ring
   const ringThickness = (focusAreasOuterRadius - centerRadius - 10) / Math.max(conceptGroups.length, 1);
 
+  // Total number of rings for color adjustment
+  const totalRings = conceptGroups.length;
+
   // For each concept group, create arcs with appropriate radii
   const focusAreaArcs = useMemo(() => {
     const arcs: Array<{
       id: string;
       name: string;
       color: string;
+      adjustedColor: string;
       concept_id: string;
       startMonth: number;
       endMonth: number;
       innerRadius: number;
       outerRadius: number;
+      ringIndex: number;
     }> = [];
 
     conceptGroups.forEach(([conceptId, fas], groupIndex) => {
@@ -137,11 +220,13 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
             id: fa.id,
             name: fa.name,
             color: fa.color,
+            adjustedColor: adjustColorForRing(fa.color, groupIndex, totalRings),
             concept_id: fa.concept_id,
             startMonth: fa.start_month ?? 0,
             endMonth: fa.end_month ?? 11,
             innerRadius: innerR,
             outerRadius: outerR,
+            ringIndex: groupIndex,
           });
         });
       } else {
@@ -152,18 +237,20 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
             id: fa.id,
             name: fa.name,
             color: fa.color,
+            adjustedColor: adjustColorForRing(fa.color, groupIndex, totalRings),
             concept_id: fa.concept_id,
             startMonth: Math.round(i * sliceSize),
             endMonth: Math.round((i + 1) * sliceSize) - 1,
             innerRadius: innerR,
             outerRadius: outerR,
+            ringIndex: groupIndex,
           });
         });
       }
     });
 
     return arcs;
-  }, [conceptGroups, ringThickness]);
+  }, [conceptGroups, ringThickness, totalRings]);
 
   // Create arc generator function
   const createArcPath = (item: typeof focusAreaArcs[0]) => {
@@ -214,11 +301,39 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
 
   return (
     <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
+      {/* Zoom Controls */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-2 py-1 shadow-sm border border-gray-200">
+        <button
+          onClick={handleZoomOut}
+          disabled={zoomIndex === 0}
+          className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="Zooma ut"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+          </svg>
+        </button>
+        <span className="text-xs font-medium text-gray-600 min-w-[40px] text-center">
+          {ZOOM_LABELS[zoomIndex]}
+        </span>
+        <button
+          onClick={handleZoomIn}
+          disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+          className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          title="Zooma in"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+
       <svg
-        width="100%"
-        height="100%"
+        width={`${100 * zoom}%`}
+        height={`${100 * zoom}%`}
         viewBox={`0 0 ${size} ${size}`}
-        className="max-w-4xl max-h-[90vh] select-none"
+        className="max-h-[90vh] select-none transition-all duration-300"
+        style={{ maxWidth: `${size * zoom}px` }}
       >
         <g transform={`translate(${radius},${radius})`}>
           
@@ -294,7 +409,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
               >
                 <path
                   d={path || ""}
-                  fill={focusArea.color}
+                  fill={focusArea.adjustedColor}
                   className={`${opacityClass} transition-opacity duration-300`}
                   stroke={isSelected ? focusArea.color : "white"}
                   strokeWidth={isSelected ? "3" : "2"}
