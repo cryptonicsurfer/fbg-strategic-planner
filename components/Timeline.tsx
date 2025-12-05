@@ -63,23 +63,23 @@ const Timeline: React.FC<TimelineProps> = ({ year, activities, focusAreas, onAct
   };
 
   return (
-    <div className="w-full h-full overflow-x-auto overflow-y-hidden custom-scrollbar bg-white/50 rounded-xl border border-gray-200 shadow-sm backdrop-blur-sm">
+    <div className="w-full h-full overflow-x-auto overflow-y-hidden custom-scrollbar bg-white/50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm backdrop-blur-sm">
       <div className="min-w-max h-full flex flex-col">
         {/* Header: Year */}
-        <div className="px-6 py-4 bg-white border-b border-gray-100 sticky left-0 z-10">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{year}</h2>
+        <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky left-0 z-10">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{year}</h2>
         </div>
 
         {/* Main Content Grid */}
         <div className="flex flex-1">
           {focusAreaGroups.map((focusArea) => (
-            <div key={focusArea.id} className="flex flex-col border-r border-gray-200 last:border-r-0">
+            <div key={focusArea.id} className="flex flex-col border-r border-gray-200 dark:border-gray-700 last:border-r-0">
               {/* Focus Area Header */}
               <div
-                className="py-2 px-4 text-xs font-bold uppercase tracking-wider text-center border-b border-gray-200/50"
+                className="py-2 px-4 text-xs font-bold uppercase tracking-wider text-center border-b border-gray-200/50 dark:border-gray-700/50"
                 style={{ backgroundColor: `${focusArea.color}20`, color: '#374151' }}
               >
-                {focusArea.name}
+                <span className="dark:text-gray-200">{focusArea.name}</span>
               </div>
 
               {/* Months Container */}
@@ -91,13 +91,13 @@ const Timeline: React.FC<TimelineProps> = ({ year, activities, focusAreas, onAct
                   return (
                     <div
                       key={month.index}
-                      className={`w-32 md:w-40 flex flex-col border-r border-gray-100/50 last:border-r-0 ${
-                        isEven ? 'bg-white' : 'bg-gray-50/30'
+                      className={`w-32 md:w-40 flex flex-col border-r border-gray-100/50 dark:border-gray-700/50 last:border-r-0 ${
+                        isEven ? 'bg-white dark:bg-gray-800' : 'bg-gray-50/30 dark:bg-gray-700/30'
                       }`}
                     >
                       {/* Month Name */}
-                      <div className="py-3 text-center border-b border-gray-100">
-                        <span className="text-sm font-semibold text-gray-500 uppercase">
+                      <div className="py-3 text-center border-b border-gray-100 dark:border-gray-700">
+                        <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase">
                           {month.shortName}
                         </span>
                       </div>
@@ -124,8 +124,8 @@ const Timeline: React.FC<TimelineProps> = ({ year, activities, focusAreas, onAct
                               className="
                                 group relative cursor-pointer
                                 rounded-lg p-3
-                                bg-white hover:bg-blue-50
-                                border border-gray-200 hover:border-blue-200
+                                bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30
+                                border border-gray-200 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-700
                                 shadow-sm hover:shadow-md
                                 transition-all duration-200
                                 min-h-[140px] flex items-center justify-center
@@ -139,10 +139,10 @@ const Timeline: React.FC<TimelineProps> = ({ year, activities, focusAreas, onAct
                                   className="w-1.5 h-1.5 rounded-full shrink-0"
                                   style={{ backgroundColor: focusArea.color }}
                                 />
-                                <span className="text-xs font-medium text-gray-400 whitespace-nowrap">
+                                <span className="text-xs font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">
                                   {displayDate}
                                 </span>
-                                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap truncate max-w-[160px]">
+                                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap truncate max-w-[160px]">
                                   {activity.title}
                                 </span>
                               </div>

@@ -302,24 +302,24 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
   return (
     <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
       {/* Zoom Controls */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-2 py-1 shadow-sm border border-gray-200">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full px-2 py-1 shadow-sm border border-gray-200 dark:border-gray-700">
         <button
           onClick={handleZoomOut}
           disabled={zoomIndex === 0}
-          className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           title="Zooma ut"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
           </svg>
         </button>
-        <span className="text-xs font-medium text-gray-600 min-w-[40px] text-center">
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-300 min-w-[40px] text-center">
           {ZOOM_LABELS[zoomIndex]}
         </span>
         <button
           onClick={handleZoomIn}
           disabled={zoomIndex === ZOOM_LEVELS.length - 1}
-          className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           title="Zooma in"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -539,7 +539,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
                         y={yText}
                         textAnchor={isRightSide ? 'start' : 'end'}
                         dominantBaseline="middle"
-                        className="text-[10px] font-medium fill-gray-700"
+                        className="text-[10px] font-medium fill-gray-700 dark:fill-gray-300"
                         style={{ fontFamily: '"Inter", sans-serif' }}
                       >
                         {label}
@@ -556,7 +556,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="absolute pointer-events-none z-50 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs"
+          className="absolute pointer-events-none z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 max-w-xs"
           style={{
             left: tooltip.x + 10,
             top: tooltip.y - 10,
@@ -574,17 +574,17 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
                       style={{ backgroundColor: focusArea.color }}
                     />
                   )}
-                  <span className="font-semibold text-sm text-gray-900">
+                  <span className="font-semibold text-sm text-gray-900 dark:text-white">
                     {tooltip.activity.title}
                   </span>
                 </div>
                 {focusArea && (
-                  <div className="text-xs text-gray-500 mb-2">{focusArea.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">{focusArea.name}</div>
                 )}
                 {lines.length > 0 && (
                   <div className="space-y-1">
                     {lines.map((line, i) => (
-                      <div key={i} className="text-xs text-gray-600">{line}</div>
+                      <div key={i} className="text-xs text-gray-600 dark:text-gray-300">{line}</div>
                     ))}
                   </div>
                 )}
