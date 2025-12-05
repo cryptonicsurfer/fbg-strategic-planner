@@ -152,21 +152,21 @@ const CopyYearModal: React.FC<CopyYearModalProps> = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-gray-900">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                 Kopiera aktiviteter till {targetYear}
               </h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Välj vilka aktiviteter du vill kopiera från ett annat år
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -176,18 +176,18 @@ const CopyYearModal: React.FC<CopyYearModalProps> = ({
 
           {/* Source year selector */}
           <div className="mt-4 flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Kopiera från:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Kopiera från:</label>
             <select
               value={sourceYear}
               onChange={(e) => setSourceYear(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             >
               {yearOptions.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
             <span className="text-gray-400">→</span>
-            <span className="font-semibold text-gray-900">{targetYear}</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{targetYear}</span>
           </div>
         </div>
 
@@ -195,29 +195,29 @@ const CopyYearModal: React.FC<CopyYearModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400" />
             </div>
           ) : sourceActivities.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               Inga aktiviteter hittades för {sourceYear}
             </div>
           ) : (
             <>
               {/* Select all toggle */}
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <button
                   onClick={toggleAll}
-                  className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                  className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                 >
                   <input
                     type="checkbox"
                     checked={selectedActivityIds.size === sourceActivities.length}
                     onChange={toggleAll}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
                   />
                   Välj alla ({sourceActivities.length} aktiviteter)
                 </button>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   {selectedActivityIds.size} valda
                 </span>
               </div>
@@ -232,10 +232,10 @@ const CopyYearModal: React.FC<CopyYearModalProps> = ({
                   const someSelected = faActivities.some(a => selectedActivityIds.has(a.id));
 
                   return (
-                    <div key={focusArea.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div key={focusArea.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                       {/* Focus area header */}
                       <div
-                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50"
+                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
                         style={{ backgroundColor: focusArea.color + '15' }}
                         onClick={() => toggleFocusArea(focusArea.id)}
                       >
@@ -246,35 +246,35 @@ const CopyYearModal: React.FC<CopyYearModalProps> = ({
                             if (el) el.indeterminate = someSelected && !allSelected;
                           }}
                           onChange={() => toggleFocusArea(focusArea.id)}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
                         />
                         <div
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: focusArea.color }}
                         />
-                        <span className="font-medium text-gray-800">{focusArea.name}</span>
-                        <span className="text-xs text-gray-500">({faActivities.length})</span>
+                        <span className="font-medium text-gray-800 dark:text-white">{focusArea.name}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">({faActivities.length})</span>
                       </div>
 
                       {/* Activities */}
-                      <div className="divide-y divide-gray-100">
+                      <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {faActivities.map(activity => (
                           <label
                             key={activity.id}
-                            className="flex items-center gap-3 p-3 pl-10 cursor-pointer hover:bg-gray-50"
+                            className="flex items-center gap-3 p-3 pl-10 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30"
                           >
                             <input
                               type="checkbox"
                               checked={selectedActivityIds.has(activity.id)}
                               onChange={() => toggleActivity(activity.id)}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-800 truncate">
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                                 {activity.title}
                               </div>
                               {activity.start_date && (
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
                                   {new Date(activity.start_date).toLocaleDateString('sv-SE')}
                                   {activity.weeks.length > 0 && ` (v${activity.weeks[0]}${activity.weeks.length > 1 ? `-${activity.weeks[activity.weeks.length - 1]}` : ''})`}
                                 </div>
@@ -292,10 +292,10 @@ const CopyYearModal: React.FC<CopyYearModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Avbryt
           </button>

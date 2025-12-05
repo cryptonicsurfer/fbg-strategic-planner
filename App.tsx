@@ -9,6 +9,7 @@ import ViewToggle from './components/ViewToggle';
 import YearSelector from './components/YearSelector';
 import CopyYearModal from './components/CopyYearModal';
 import ExportButton from './components/ExportButton';
+import ThemeToggle from './components/ThemeToggle';
 import LoginPage from './components/LoginPage';
 import { conceptsApi, activitiesApi, authApi } from './api/client';
 import { Activity, FocusArea, StrategicConcept, ViewMode, User } from './types';
@@ -200,8 +201,8 @@ const App: React.FC = () => {
   // --- Auth Loading State ---
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="min-h-screen bg-[#f5f5f7] dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400" />
       </div>
     );
   }
@@ -212,15 +213,15 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] flex flex-col relative overflow-hidden text-gray-800">
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-gray-900 flex flex-col relative overflow-hidden text-gray-800 dark:text-gray-200 transition-colors duration-200">
       {/* Header / Nav */}
-      <header className="fixed top-0 left-0 right-0 z-40 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between bg-white/70 backdrop-blur-md border-b border-gray-200/50">
+      <header className="fixed top-0 left-0 right-0 z-40 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between bg-white/70 dark:bg-gray-800/70 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 transition-colors duration-200">
         <div className="flex flex-col md:flex-row md:items-center md:gap-4 lg:gap-6">
           <div>
-            <h1 className="text-lg md:text-2xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-lg md:text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
               {headerTitle}
             </h1>
-            <p className="text-[10px] md:text-xs text-gray-500 font-medium tracking-wide uppercase">
+            <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium tracking-wide uppercase">
               {selectedConceptId ? 'Fokusområde' : 'Alla koncept'}
             </p>
           </div>
@@ -259,7 +260,7 @@ const App: React.FC = () => {
               const currentIndex = views.indexOf(viewMode);
               setViewMode(views[(currentIndex + 1) % views.length]);
             }}
-            className="md:hidden p-2 text-gray-500 bg-gray-100 rounded-full"
+            className="md:hidden p-2 text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -277,7 +278,7 @@ const App: React.FC = () => {
 
           <button
             onClick={() => setIsAIModalOpen(true)}
-            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 hover:text-blue-700 text-sm font-semibold rounded-full border border-blue-100 hover:border-blue-200 transition-all shadow-sm"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-semibold rounded-full border border-blue-100 dark:border-blue-800 hover:border-blue-200 dark:hover:border-blue-700 transition-all shadow-sm"
           >
             <span className="text-lg">✨</span>
             <span className="hidden md:inline">AI Rapport</span>
@@ -285,7 +286,7 @@ const App: React.FC = () => {
 
           <button
             onClick={handleAddClick}
-            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-black text-white text-sm font-semibold rounded-full hover:bg-gray-800 transition-all shadow-lg shadow-gray-400/20"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-black dark:bg-blue-600 text-white text-sm font-semibold rounded-full hover:bg-gray-800 dark:hover:bg-blue-700 transition-all shadow-lg shadow-gray-400/20 dark:shadow-blue-900/30"
           >
             <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path
@@ -297,10 +298,13 @@ const App: React.FC = () => {
             <span className="hidden md:inline">Ny aktivitet</span>
           </button>
 
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             title="Logga ut"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -311,7 +315,7 @@ const App: React.FC = () => {
       </header>
 
       {/* Mobile Concept Selector */}
-      <div className="lg:hidden fixed top-[60px] left-0 right-0 z-30 px-4 py-2 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 overflow-x-auto">
+      <div className="lg:hidden fixed top-[60px] left-0 right-0 z-30 px-4 py-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 overflow-x-auto">
         <ConceptSelector
           concepts={concepts}
           selectedConceptId={selectedConceptId}
@@ -394,13 +398,13 @@ const App: React.FC = () => {
 
       {/* Legend (Wheel view only) */}
       {viewMode === 'wheel' && filteredFocusAreas.length > 0 && (
-        <div className="fixed bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-white/50 hidden md:block">
-          <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">Fokusområden</h3>
+        <div className="fixed bottom-6 left-6 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-white/50 dark:border-gray-700 hidden md:block">
+          <h3 className="text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-2">Fokusområden</h3>
           <div className="space-y-2">
             {filteredFocusAreas.map((fa) => (
               <div key={fa.id} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: fa.color }} />
-                <span className="text-xs font-medium text-gray-600">{fa.name}</span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{fa.name}</span>
               </div>
             ))}
           </div>

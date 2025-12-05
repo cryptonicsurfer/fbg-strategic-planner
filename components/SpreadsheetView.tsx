@@ -345,7 +345,7 @@ const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
               onChange={handleSelectChange}
               onBlur={handleSelectBlur}
               onKeyDown={handleSelectKeyDown}
-              className="w-full h-full px-2 py-1.5 text-xs bg-white border-2 border-blue-500 rounded outline-none"
+              className="w-full h-full px-2 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-white border-2 border-blue-500 rounded outline-none"
             >
               <option value="">Välj...</option>
               {options.map(opt => (
@@ -368,7 +368,7 @@ const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
             onBlur={saveEdit}
             onKeyDown={(e) => handleKeyDown(e, activity.id, field)}
             placeholder={config.placeholder}
-            className="w-full h-full px-2 py-1.5 text-xs bg-white border-2 border-blue-500 rounded outline-none"
+            className="w-full h-full px-2 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-white border-2 border-blue-500 rounded outline-none"
           />
         </td>
       );
