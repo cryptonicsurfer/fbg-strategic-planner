@@ -4,6 +4,9 @@ import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth';
 
 const router = Router();
 
+// Require authentication for all concept routes to avoid unauthenticated data access
+router.use(verifyDirectusToken);
+
 // Get all strategic concepts
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {

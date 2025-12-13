@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import pool from '../db';
+import { verifyDirectusToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -54,12 +55,24 @@ const formatDataForAI = (activities: any[], focusAreas: any[]) => {
 };
 
 // POST /api/ai/report - Generate AI report
-router.post('/report', async (req: Request, res: Response) => {
+router.post('/report', verifyDirectusToken, async (req: Request, res: Response) => {
   try {
     const { prompt, conceptId, year } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    if (typeof prompt !== 'string' || prompt.trim().length === 0 || prompt.length > 5000) {
+      return res.status(400).json({ error: 'Prompt must be a non-empty string under 5000 characters' });
+    }
+
+    if (conceptId && typeof conceptId !== 'string') {
+      return res.status(400).json({ error: 'Invalid conceptId' });
+    }
+
+    if (year && (typeof year !== 'number' || !Number.isInteger(year))) {
+      return res.status(400).json({ error: 'Year must be an integer' });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
