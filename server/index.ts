@@ -5,10 +5,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import authRoutes from './routes/auth';
-import conceptsRoutes from './routes/concepts';
-import activitiesRoutes from './routes/activities';
-import aiRoutes from './routes/ai';
+import authRoutes from './routes/auth.js';
+import conceptsRoutes from './routes/concepts.js';
+import activitiesRoutes from './routes/activities.js';
+import aiRoutes from './routes/ai.js';
 
 dotenv.config();
 

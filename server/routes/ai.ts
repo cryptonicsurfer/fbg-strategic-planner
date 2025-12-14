@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
-import pool from '../db';
-import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth';
+import pool from '../db.js';
+import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth.js';
 
 const router = Router();
 

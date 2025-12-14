@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
-import { query } from '../db';
-import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth';
+import { query } from '../db.js';
+import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -159,6 +159,35 @@ router.post('/:id/focus-areas', verifyDirectusToken, async (req: AuthenticatedRe
   } catch (error) {
     console.error('Error creating focus area:', error);
     return res.status(500).json({ error: 'Failed to create focus area' });
+  }
+});
+
+// Update focus area (protected) - for color changes etc.
+router.patch('/focus-areas/:focusAreaId', verifyDirectusToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { focusAreaId } = req.params;
+    const { name, color, start_month, end_month, sort_order } = req.body;
+
+    const result = await query(
+      `UPDATE focus_areas
+       SET name = COALESCE($1, name),
+           color = COALESCE($2, color),
+           start_month = COALESCE($3, start_month),
+           end_month = COALESCE($4, end_month),
+           sort_order = COALESCE($5, sort_order)
+       WHERE id = $6
+       RETURNING *`,
+      [name, color, start_month, end_month, sort_order, focusAreaId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Focus area not found' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating focus area:', error);
+    return res.status(500).json({ error: 'Failed to update focus area' });
   }
 });
 
