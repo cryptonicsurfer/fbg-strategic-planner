@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import pool from '../db';
+import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ const formatDataForAI = (activities: any[], focusAreas: any[]) => {
 };
 
 // POST /api/ai/report - Generate AI report
-router.post('/report', async (req: Request, res: Response) => {
+router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { prompt, conceptId, year } = req.body;
 
