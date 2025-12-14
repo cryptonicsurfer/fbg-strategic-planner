@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECTUS_URL=${DIRECTUS_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    networks:
+      - app-network
+      - postgres_default
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  app-network:
+    driver: bridge
+  postgres_default:
+    external: true
