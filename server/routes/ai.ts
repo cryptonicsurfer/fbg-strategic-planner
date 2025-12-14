@@ -63,6 +63,18 @@ router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, re
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
+    if (typeof prompt !== 'string' || prompt.trim().length === 0 || prompt.length > 5000) {
+      return res.status(400).json({ error: 'Prompt must be a non-empty string under 5000 characters' });
+    }
+
+    if (conceptId && typeof conceptId !== 'string') {
+      return res.status(400).json({ error: 'Invalid conceptId' });
+    }
+
+    if (year && (typeof year !== 'number' || !Number.isInteger(year))) {
+      return res.status(400).json({ error: 'Year must be an integer' });
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: 'AI service not configured' });

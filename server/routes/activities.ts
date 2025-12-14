@@ -4,6 +4,9 @@ import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth';
 
 const router = Router();
 
+// Protect all activity routes to ensure only authenticated users can read or modify data
+router.use(verifyDirectusToken);
+
 // Get activities with optional filters
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
