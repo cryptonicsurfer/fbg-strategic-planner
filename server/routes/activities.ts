@@ -133,6 +133,110 @@ router.post('/', verifyDirectusToken, async (req: AuthenticatedRequest, res: Res
   }
 });
 
+// Batch create activities (protected)
+router.post('/batch', verifyDirectusToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { activities, skipDuplicates = true } = req.body;
+
+    if (!Array.isArray(activities) || activities.length === 0) {
+      return res.status(400).json({ error: 'activities array is required' });
+    }
+
+    if (activities.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 activities per batch' });
+    }
+
+    // Fetch existing activities to check for duplicates
+    const existingResult = await query(
+      `SELECT LOWER(TRIM(title)) as title_normalized, focus_area_id, start_date
+       FROM activities`
+    );
+    const existingSet = new Set(
+      existingResult.rows.map(row => {
+        // Create a unique key: title|focus_area_id|start_date
+        const dateKey = row.start_date ? new Date(row.start_date).toISOString().split('T')[0] : 'null';
+        return `${row.title_normalized}|${row.focus_area_id}|${dateKey}`;
+      })
+    );
+
+    const created: any[] = [];
+    const failed: { index: number; error: string }[] = [];
+    const skipped: { index: number; title: string; reason: string }[] = [];
+
+    for (let i = 0; i < activities.length; i++) {
+      const activity = activities[i];
+
+      if (!activity.focus_area_id || !activity.title) {
+        failed.push({ index: i, error: 'focus_area_id and title are required' });
+        continue;
+      }
+
+      // Check for duplicate
+      if (skipDuplicates) {
+        const titleNormalized = activity.title.toLowerCase().trim();
+        const dateKey = activity.start_date || 'null';
+        const activityKey = `${titleNormalized}|${activity.focus_area_id}|${dateKey}`;
+
+        if (existingSet.has(activityKey)) {
+          skipped.push({
+            index: i,
+            title: activity.title,
+            reason: 'Aktivitet med samma titel, fokusområde och startdatum finns redan'
+          });
+          continue;
+        }
+
+        // Add to set to prevent duplicates within the same batch
+        existingSet.add(activityKey);
+      }
+
+      try {
+        const result = await query(
+          `INSERT INTO activities (
+            focus_area_id, title, description, start_date, end_date,
+            responsible, purpose, theme, target_group, status, weeks
+          )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           RETURNING *`,
+          [
+            activity.focus_area_id,
+            activity.title,
+            activity.description || null,
+            activity.start_date || null,
+            activity.end_date || null,
+            activity.responsible || null,
+            activity.purpose || null,
+            activity.theme || null,
+            activity.target_group || null,
+            activity.status || 'ongoing',
+            activity.weeks || []
+          ]
+        );
+
+        // Fetch the complete activity with joined fields
+        const fullActivity = await query(
+          `SELECT a.*, fa.name as focus_area_name, fa.color as focus_area_color,
+                  fa.concept_id, c.name as concept_name
+           FROM activities a
+           JOIN focus_areas fa ON a.focus_area_id = fa.id
+           JOIN strategic_concepts c ON fa.concept_id = c.id
+           WHERE a.id = $1`,
+          [result.rows[0].id]
+        );
+        created.push(fullActivity.rows[0]);
+      } catch (err) {
+        console.error('Batch create error for item', i, err);
+        failed.push({ index: i, error: 'Database error' });
+      }
+    }
+
+    return res.status(201).json({ created, failed, skipped });
+  } catch (error) {
+    console.error('Error batch creating activities:', error);
+    return res.status(500).json({ error: 'Failed to batch create activities' });
+  }
+});
+
 // Update activity (protected)
 router.put('/:id', verifyDirectusToken, async (req: AuthenticatedRequest, res: Response) => {
   try {

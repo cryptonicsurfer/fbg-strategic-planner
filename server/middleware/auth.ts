@@ -24,6 +24,10 @@ export async function verifyDirectusToken(
 ) {
   const token = req.cookies?.directus_access_token;
 
+  console.log('[Auth] Checking token for:', req.path);
+  console.log('[Auth] Token present:', !!token);
+  console.log('[Auth] Cookies:', Object.keys(req.cookies || {}));
+
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -33,7 +37,11 @@ export async function verifyDirectusToken(
       headers: { Authorization: `Bearer ${token}` }
     });
 
+    console.log('[Auth] Directus response status:', response.status);
+
     if (!response.ok) {
+      const errorBody = await response.text();
+      console.log('[Auth] Directus error:', errorBody);
       return res.status(401).json({ error: 'Invalid token' });
     }
 

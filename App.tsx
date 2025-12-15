@@ -4,6 +4,7 @@ import Timeline from './components/Timeline';
 import SpreadsheetView from './components/SpreadsheetView';
 import ActivityModal from './components/ActivityModal';
 import AIReportModal from './components/AIReportModal';
+import AIActivityAssistant from './components/AIActivityAssistant';
 import ConceptSelector from './components/ConceptSelector';
 import ViewToggle from './components/ViewToggle';
 import YearSelector from './components/YearSelector';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('wheel');
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isAIActivityModalOpen, setIsAIActivityModalOpen] = useState(false);
   const [isCopyYearModalOpen, setIsCopyYearModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
 
@@ -276,6 +278,14 @@ const App: React.FC = () => {
           />
 
           <button
+            onClick={() => setIsAIActivityModalOpen(true)}
+            className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 text-green-600 hover:text-green-700 text-sm font-semibold rounded-full border border-green-100 hover:border-green-200 transition-all shadow-sm"
+          >
+            <span className="text-lg">🤖</span>
+            <span className="hidden md:inline">AI Skapa</span>
+          </button>
+
+          <button
             onClick={() => setIsAIModalOpen(true)}
             className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 hover:text-blue-700 text-sm font-semibold rounded-full border border-blue-100 hover:border-blue-200 transition-all shadow-sm"
           >
@@ -425,6 +435,17 @@ const App: React.FC = () => {
         onClose={() => setIsAIModalOpen(false)}
         conceptId={selectedConceptId}
         currentYear={selectedYear}
+      />
+
+      <AIActivityAssistant
+        isOpen={isAIActivityModalOpen}
+        onClose={() => setIsAIActivityModalOpen(false)}
+        conceptId={selectedConceptId}
+        currentYear={selectedYear}
+        focusAreas={filteredFocusAreas}
+        onActivitiesCreated={(created) => {
+          setActivities((prev) => [...prev, ...created]);
+        }}
       />
 
       <CopyYearModal

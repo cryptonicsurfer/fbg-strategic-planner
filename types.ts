@@ -81,6 +81,46 @@ export interface AuthState {
 }
 
 // ============================================
+// AI-generated activity types
+// ============================================
+
+export interface GeneratedActivity {
+  title: string;
+  description: string | null;
+  suggested_focus_area: string;       // Name suggested by AI
+  matched_focus_area_id: string | null;  // Matched UUID or null
+  matched_focus_area_name: string | null; // Matched name
+  confidence: number;                 // 0-1 matching confidence
+  start_date: string | null;          // YYYY-MM-DD
+  end_date: string | null;
+  weeks: number[];
+  responsible: string | null;
+  purpose: string | null;
+  theme: string | null;
+  target_group: string | null;
+  status: ActivityStatus;
+  needs_review: boolean;              // True if confidence < 0.8
+  review_reason?: string;             // Why manual review needed
+}
+
+export interface GenerateActivitiesResponse {
+  activities: GeneratedActivity[];
+  parsing_notes: string[];
+}
+
+export interface EditActivityResponse {
+  original: Activity;
+  modified: Activity;
+  changes: string[];
+}
+
+export interface BatchCreateResponse {
+  created: Activity[];
+  failed: { index: number; error: string }[];
+  skipped?: { index: number; title: string; reason: string }[];
+}
+
+// ============================================
 // Legacy types (for backward compatibility)
 // ============================================
 

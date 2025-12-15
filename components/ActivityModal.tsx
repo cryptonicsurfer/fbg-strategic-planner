@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, FocusArea, ActivityStatus } from '../types';
 import { PURPOSE_OPTIONS, THEME_OPTIONS, STATUS_LABELS, getWeekNumber } from '../constants';
+import { aiApi } from '../api/client';
 
 interface ActivityModalProps {
   activity: Activity | null;
@@ -21,13 +22,52 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<Activity | null>(null);
   const [weeksInput, setWeeksInput] = useState('');
+  const [aiEditOpen, setAiEditOpen] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiChanges, setAiChanges] = useState<string[]>([]);
 
   useEffect(() => {
     if (activity) {
       setFormData({ ...activity });
       setWeeksInput(activity.weeks.join(', '));
+      setAiEditOpen(false);
+      setAiInstruction('');
+      setAiChanges([]);
     }
   }, [activity]);
+
+  const handleAiEdit = async () => {
+    if (!aiInstruction.trim() || !formData || formData.id.startsWith('new')) return;
+    setAiLoading(true);
+    setAiChanges([]);
+
+    try {
+      const result = await aiApi.editActivity({
+        activityId: formData.id,
+        instruction: aiInstruction,
+      });
+
+      // Apply the modified values
+      setFormData({
+        ...formData,
+        ...result.modified,
+      });
+
+      // Update weeks input
+      if (result.modified.weeks) {
+        setWeeksInput(result.modified.weeks.join(', '));
+      }
+
+      setAiChanges(result.changes);
+      setAiInstruction('');
+    } catch (err) {
+      console.error('AI edit error:', err);
+      setAiChanges(['Kunde inte bearbeta instruktionen. Försök igen.']);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   if (!isOpen || !formData) return null;
 
@@ -315,6 +355,61 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* AI Edit Section */}
+          {!isNew && (
+            <div className="border-t border-gray-200 pt-6">
+              <button
+                type="button"
+                onClick={() => setAiEditOpen(!aiEditOpen)}
+                className="flex items-center gap-2 text-sm font-medium text-green-600 hover:text-green-700"
+              >
+                <span className="text-lg">🤖</span>
+                {aiEditOpen ? 'Stäng AI-redigering' : 'Redigera med AI'}
+              </button>
+
+              {aiEditOpen && (
+                <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-100">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Beskriv vad du vill ändra, t.ex. &quot;Flytta till vecka 15&quot; eller &quot;Ändra ansvarig till MN&quot;
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={aiInstruction}
+                      onChange={(e) => setAiInstruction(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAiEdit())}
+                      placeholder="T.ex. Flytta till mars, ändra status till beslutad"
+                      className="flex-1 px-3 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none text-sm"
+                      disabled={aiLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAiEdit}
+                      disabled={aiLoading || !aiInstruction.trim()}
+                      className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {aiLoading ? 'Bearbetar...' : 'Applicera'}
+                    </button>
+                  </div>
+
+                  {aiChanges.length > 0 && (
+                    <div className="mt-3 p-3 bg-white rounded border border-green-100">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Ändringar</p>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {aiChanges.map((change, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-green-500 mt-0.5">✓</span>
+                            {change}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Date Section */}
           <div className="border-t border-gray-200 pt-6">
