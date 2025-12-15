@@ -36,8 +36,8 @@ const ExportButton: React.FC<ExportButtonProps> = ({
 
   const formatWeeks = (weeks: number[]) => {
     if (weeks.length === 0) return '';
-    if (weeks.length === 1) return `v${weeks[0]}`;
-    return `v${weeks[0]}-${weeks[weeks.length - 1]}`;
+    // List all weeks, e.g. "v3, 9, 12, 15, 18"
+    return 'v' + weeks.join(', ');
   };
 
   // Generate CSV content
