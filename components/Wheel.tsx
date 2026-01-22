@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { arc } from 'd3-shape';
 import { Activity, FocusArea } from '../types';
-import { MONTHS, getMonthFromWeek, STATUS_LABELS } from '../constants';
+import { MONTHS, STATUS_LABELS } from '../constants';
 
 interface WheelProps {
   year: number;
   activities: Activity[];
   focusAreas: FocusArea[];
   onActivityClick: (activity: Activity) => void;
+  visibleMonths?: number[]; // Optional: when set, only these months are shown expanded to 360°
 }
 
 interface TooltipData {
@@ -16,87 +17,23 @@ interface TooltipData {
   y: number;
 }
 
-// Helper to adjust color for different rings - makes inner rings lighter
-const adjustColorForRing = (hexColor: string, ringIndex: number, totalRings: number): string => {
-  // Convert hex to RGB
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-
-  // Convert RGB to HSL
-  const rNorm = r / 255;
-  const gNorm = g / 255;
-  const bNorm = b / 255;
-  const max = Math.max(rNorm, gNorm, bNorm);
-  const min = Math.min(rNorm, gNorm, bNorm);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break;
-      case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break;
-      case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break;
-    }
-  }
-
-  // Adjust lightness based on ring position
-  // Inner rings (lower index) get lighter, outer rings get more saturated
-  const lightnessBoost = (totalRings - 1 - ringIndex) * 0.08; // More boost for inner rings
-  const saturationBoost = ringIndex * 0.1; // More saturation for outer rings
-
-  const newL = Math.min(0.85, l + lightnessBoost);
-  const newS = Math.min(1, s + saturationBoost);
-
-  // Convert back to RGB
-  const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1;
-    if (t > 1) t -= 1;
-    if (t < 1/6) return p + (q - p) * 6 * t;
-    if (t < 1/2) return q;
-    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-    return p;
-  };
-
-  let rNew, gNew, bNew;
-  if (newS === 0) {
-    rNew = gNew = bNew = newL;
-  } else {
-    const q = newL < 0.5 ? newL * (1 + newS) : newL + newS - newL * newS;
-    const p = 2 * newL - q;
-    rNew = hue2rgb(p, q, h + 1/3);
-    gNew = hue2rgb(p, q, h);
-    bNew = hue2rgb(p, q, h - 1/3);
-  }
-
-  const toHex = (c: number) => {
-    const hex = Math.round(c * 255).toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  };
-
-  return `#${toHex(rNew)}${toHex(gNew)}${toHex(bNew)}`;
-};
-
 const ZOOM_LEVELS = [0.6, 0.8, 1.0, 1.2, 1.5];
 const ZOOM_LABELS = ['60%', '80%', '100%', '120%', '150%'];
 
-const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityClick }) => {
+const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityClick, visibleMonths }) => {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
-  const [selectedFocusAreaId, setSelectedFocusAreaId] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null); // For month zoom
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [zoomIndex, setZoomIndex] = useState(4); // Default to 150%
 
   const zoom = ZOOM_LEVELS[zoomIndex];
 
-  // Handle focus area click - toggle selection
-  const handleFocusAreaClick = (focusAreaId: string) => {
-    setSelectedFocusAreaId(prev => prev === focusAreaId ? null : focusAreaId);
-  };
+  // Determine which months to display
+  const displayMonths = visibleMonths && visibleMonths.length > 0
+    ? MONTHS.filter(m => visibleMonths.includes(m.index))
+    : MONTHS;
 
-  // Handle month click - toggle month zoom
+  const isFilteredView = visibleMonths && visibleMonths.length > 0 && visibleMonths.length < 12;
+
   const handleMonthClick = (monthIndex: number) => {
     setSelectedMonth(prev => prev === monthIndex ? null : monthIndex);
   };
@@ -109,28 +46,41 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
     setZoomIndex(prev => Math.max(prev - 1, 0));
   };
 
-  // Filter activities based on selected focus area
-  const filteredActivities = useMemo(() => {
-    if (!selectedFocusAreaId) return activities;
-    return activities.filter(a => a.focus_area_id === selectedFocusAreaId);
-  }, [activities, selectedFocusAreaId]);
+  const clearFilters = () => {
+    setSelectedMonth(null);
+  };
 
   const size = 800;
   const radius = size / 2;
   const centerRadius = 60;
-  const monthRadius = 190;
-  const eventLineStartRadius = monthRadius + 10;
-  const eventLineEndRadius = monthRadius + 50;
+  const monthInnerRadius = 80;
+  const monthOuterRadius = 180;
+  const activityRadius = monthOuterRadius + 15;
 
-  // Center logic - show month name if zoomed on a month, otherwise year
-  const centerText = selectedMonth !== null ? MONTHS[selectedMonth].name : year.toString();
-  const hasActiveFilter = selectedFocusAreaId !== null || selectedMonth !== null;
-
-  // Clear all filters
-  const clearFilters = () => {
-    setSelectedFocusAreaId(null);
-    setSelectedMonth(null);
+  // Get period label for center text when filtered
+  const getPeriodLabel = () => {
+    if (!isFilteredView) return year.toString();
+    const months = visibleMonths!;
+    if (months.length === 3) {
+      if (months[0] === 0) return `Kv1 ${year}`;
+      if (months[0] === 3) return `Kv2 ${year}`;
+      if (months[0] === 6) return `Kv3 ${year}`;
+      if (months[0] === 9) return `Kv4 ${year}`;
+    }
+    if (months.length === 4) {
+      if (months[0] === 0) return `T1 ${year}`;
+      if (months[0] === 4) return `T2 ${year}`;
+      if (months[0] === 8) return `T3 ${year}`;
+    }
+    if (months.length === 6) {
+      if (months[0] === 0) return `1H ${year}`;
+      if (months[0] === 6) return `2H ${year}`;
+    }
+    return year.toString();
   };
+
+  const centerText = selectedMonth !== null ? MONTHS[selectedMonth].name : getPeriodLabel();
+  const hasActiveFilter = selectedMonth !== null;
 
   // Format tooltip content
   const formatTooltipContent = (activity: Activity) => {
@@ -144,7 +94,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
     if (activity.start_date) {
       const start = new Date(activity.start_date);
       const startStr = start.toLocaleDateString('sv-SE');
-      if (activity.end_date) {
+      if (activity.end_date && activity.end_date !== activity.start_date) {
         const end = new Date(activity.end_date);
         const endStr = end.toLocaleDateString('sv-SE');
         lines.push(`Datum: ${startStr} - ${endStr}`);
@@ -174,168 +124,237 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
     return { focusArea, lines };
   };
 
-  // Helper to get geometric angle for a specific month index (0-11)
-  const getAngle = (index: number) => {
-    return (index * (2 * Math.PI)) / 12 - Math.PI / 2;
-  };
-
+  // D3 uses 12 o'clock as 0, clockwise
   const d3AngleOffset = Math.PI / 2;
 
-  // Separate "Övrigt" from regular focus areas - it spans the entire year
-  const { ovrigtArea, regularFocusAreas } = useMemo(() => {
-    const ovrigt = focusAreas.find(fa => fa.name.toLowerCase() === 'övrigt');
-    const regular = focusAreas.filter(fa => fa.name.toLowerCase() !== 'övrigt');
-    return { ovrigtArea: ovrigt, regularFocusAreas: regular };
-  }, [focusAreas]);
+  // Helper to get angle for month index in filtered view
+  // Maps the visible months to fill 360 degrees
+  const getFilteredAngle = (monthIndex: number, positionInMonth: number = 0) => {
+    if (!isFilteredView) {
+      // Normal view: each month is 1/12 of the circle
+      return ((monthIndex + positionInMonth) * (2 * Math.PI)) / 12 - Math.PI / 2;
+    }
 
-  // Group regular focus areas by concept_id
-  const conceptGroups = useMemo(() => {
-    const groups = new Map<string, FocusArea[]>();
-    regularFocusAreas.forEach(fa => {
-      const conceptId = fa.concept_id;
-      if (!groups.has(conceptId)) {
-        groups.set(conceptId, []);
-      }
-      groups.get(conceptId)!.push(fa);
-    });
-    return Array.from(groups.entries());
-  }, [regularFocusAreas]);
+    // Filtered view: visible months fill the entire circle
+    const visibleIndex = visibleMonths!.indexOf(monthIndex);
+    if (visibleIndex === -1) return 0;
 
-  // Outer radius for focus areas (just inside the months ring)
-  const focusAreasOuterRadius = monthRadius - 50;
-
-  // Reserve space for Övrigt ring at the innermost position
-  const ovrigtRingThickness = ovrigtArea ? 15 : 0;
-  const ovrigtInnerRadius = centerRadius + 5;
-  const ovrigtOuterRadius = ovrigtInnerRadius + ovrigtRingThickness;
-
-  // Calculate radii for each concept ring (starting after Övrigt)
-  const ringStartRadius = ovrigtArea ? ovrigtOuterRadius + 3 : centerRadius + 5;
-  const ringThickness = (focusAreasOuterRadius - ringStartRadius) / Math.max(conceptGroups.length, 1);
-
-  // Total number of rings for color adjustment
-  const totalRings = conceptGroups.length;
-
-  // For each concept group, create arcs with appropriate radii
-  const focusAreaArcs = useMemo(() => {
-    const arcs: Array<{
-      id: string;
-      name: string;
-      color: string;
-      adjustedColor: string;
-      concept_id: string;
-      startMonth: number;
-      endMonth: number;
-      innerRadius: number;
-      outerRadius: number;
-      ringIndex: number;
-    }> = [];
-
-    conceptGroups.forEach(([conceptId, fas], groupIndex) => {
-      // Determine if this concept group is time-based
-      const isTimeBased = fas.some(fa => fa.start_month !== null && fa.end_month !== null);
-
-      // Calculate radii for this ring (outer rings for outer concepts)
-      const innerR = ringStartRadius + groupIndex * ringThickness;
-      const outerR = innerR + ringThickness - 5;
-
-      if (isTimeBased) {
-        // Time-based: use actual months
-        fas.forEach(fa => {
-          arcs.push({
-            id: fa.id,
-            name: fa.name,
-            color: fa.color,
-            adjustedColor: adjustColorForRing(fa.color, groupIndex, totalRings),
-            concept_id: fa.concept_id,
-            startMonth: fa.start_month ?? 0,
-            endMonth: fa.end_month ?? 11,
-            innerRadius: innerR,
-            outerRadius: outerR,
-            ringIndex: groupIndex,
-          });
-        });
-      } else {
-        // Theme-based: distribute evenly around the full circle
-        const sliceSize = 12 / fas.length;
-        fas.forEach((fa, i) => {
-          arcs.push({
-            id: fa.id,
-            name: fa.name,
-            color: fa.color,
-            adjustedColor: adjustColorForRing(fa.color, groupIndex, totalRings),
-            concept_id: fa.concept_id,
-            startMonth: Math.round(i * sliceSize),
-            endMonth: Math.round((i + 1) * sliceSize) - 1,
-            innerRadius: innerR,
-            outerRadius: outerR,
-            ringIndex: groupIndex,
-          });
-        });
-      }
-    });
-
-    return arcs;
-  }, [conceptGroups, ringThickness, ringStartRadius, totalRings]);
-
-  // Create arc generator function
-  const createArcPath = (item: typeof focusAreaArcs[0]) => {
-    const arcGen = arc<any>()
-      .innerRadius(item.innerRadius)
-      .outerRadius(item.outerRadius)
-      .startAngle(getAngle(item.startMonth) + d3AngleOffset)
-      .endAngle(getAngle(item.endMonth + 1) + d3AngleOffset)
-      .padAngle(0.01)
-      .cornerRadius(8);
-    return arcGen(item);
+    const anglePerMonth = (2 * Math.PI) / visibleMonths!.length;
+    return (visibleIndex + positionInMonth) * anglePerMonth - Math.PI / 2;
   };
 
-  const getArcCentroid = (item: typeof focusAreaArcs[0]) => {
-    const midAngle = (getAngle(item.startMonth) + getAngle(item.endMonth + 1)) / 2 + d3AngleOffset;
-    const midRadius = (item.innerRadius + item.outerRadius) / 2;
-    return [Math.cos(midAngle - Math.PI / 2) * midRadius, Math.sin(midAngle - Math.PI / 2) * midRadius];
+  // Helper to get angle for month index (0-11) - legacy, for normal view
+  const getAngle = (index: number) => {
+    return getFilteredAngle(index);
   };
 
+  // Convert date to angle position (handles filtered view)
+  const dateToAngle = (dateStr: string): number | null => {
+    const date = new Date(dateStr);
+    const month = date.getMonth();
+    const day = date.getDate();
+    const daysInMonth = new Date(date.getFullYear(), month + 1, 0).getDate();
+
+    // Check if this month is visible
+    if (isFilteredView && !visibleMonths!.includes(month)) {
+      return null;
+    }
+
+    const positionInMonth = (day - 1) / daysInMonth;
+    return getFilteredAngle(month, positionInMonth);
+  };
+
+  // Helper to get angle for a specific position in the year (0-1)
+  const getAngleFromYearPosition = (position: number) => {
+    if (!isFilteredView) {
+      return position * 2 * Math.PI - Math.PI / 2;
+    }
+
+    // In filtered view, map position within the filtered period
+    const firstMonth = visibleMonths![0];
+    const lastMonth = visibleMonths![visibleMonths!.length - 1];
+    const periodStart = firstMonth / 12;
+    const periodEnd = (lastMonth + 1) / 12;
+
+    // Check if position is within the filtered period
+    if (position < periodStart || position > periodEnd) {
+      return null as any;
+    }
+
+    // Map to 0-1 within the filtered period, then to angle
+    const normalizedPos = (position - periodStart) / (periodEnd - periodStart);
+    return normalizedPos * 2 * Math.PI - Math.PI / 2;
+  };
+
+  // Convert date to year position (0-1)
+  const dateToYearPosition = (dateStr: string): number => {
+    const date = new Date(dateStr);
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    const endOfYear = new Date(date.getFullYear(), 11, 31);
+    const yearLength = endOfYear.getTime() - startOfYear.getTime();
+    const dayOfYear = date.getTime() - startOfYear.getTime();
+    return dayOfYear / yearLength;
+  };
+
+  // Create month arc generator for filtered view
+  const createMonthArc = (displayIndex: number, totalMonths: number) => {
+    const anglePerMonth = (2 * Math.PI) / totalMonths;
+    const startAngle = displayIndex * anglePerMonth;
+    const endAngle = (displayIndex + 1) * anglePerMonth;
+
+    return arc<any>()
+      .innerRadius(monthInnerRadius)
+      .outerRadius(monthOuterRadius)
+      .startAngle(startAngle)
+      .endAngle(endAngle)
+      .padAngle(0.02)
+      .cornerRadius(4)({});
+  };
+
+  // Legacy month arc generator (for compatibility)
   const monthArcGen = arc<any>()
-    .innerRadius(focusAreasOuterRadius)
-    .outerRadius(monthRadius)
+    .innerRadius(monthInnerRadius)
+    .outerRadius(monthOuterRadius)
     .startAngle((d) => getAngle(d.index) + d3AngleOffset)
     .endAngle((d) => getAngle(d.index + 1) + d3AngleOffset)
-    .padAngle(0.01)
+    .padAngle(0.02)
     .cornerRadius(4);
 
-  // All activities will be rendered as dots
-  // Activities with multiple weeks will show multiple dots (one per week)
+  // Helper to check if an activity is within visible months
+  const isActivityVisible = (activity: Activity): boolean => {
+    if (!isFilteredView) return true;
 
-  // Group all activities by month
-  // For activities with multiple weeks, create an entry for each week
-  const activitiesByMonth = useMemo(() => {
-    const map = new Map<number, { activity: Activity; week?: number; label?: string }[]>();
+    if (activity.start_date) {
+      const month = new Date(activity.start_date).getMonth();
+      if (visibleMonths!.includes(month)) return true;
 
-    filteredActivities.forEach(activity => {
-      if (activity.weeks.length > 0) {
-        // For activities with weeks, add one entry per week
-        activity.weeks.forEach(week => {
-          const monthIndex = getMonthFromWeek(week);
-          const list = map.get(monthIndex) || [];
-          list.push({ activity, week, label: `${activity.title}, v${week}` });
-          map.set(monthIndex, list);
+      // For date ranges, also check end date
+      if (activity.end_date) {
+        const endMonth = new Date(activity.end_date).getMonth();
+        // Check if any part of the range overlaps with visible months
+        const startMonth = month;
+        for (let m = startMonth; m <= endMonth; m++) {
+          if (visibleMonths!.includes(m)) return true;
+        }
+      }
+      return false;
+    }
+
+    if (activity.weeks.length > 0) {
+      // Check if any week falls within visible months
+      return activity.weeks.some(week => {
+        const approxMonth = Math.floor(((week - 1) / 52) * 12);
+        return visibleMonths!.includes(Math.min(11, approxMonth));
+      });
+    }
+
+    return false;
+  };
+
+  // Process activities into display items
+  const activityDisplayItems = useMemo(() => {
+    const items: Array<{
+      activity: Activity;
+      type: 'dot' | 'arc';
+      yearPosition?: number;  // For dots
+      angle?: number;         // Pre-calculated angle for filtered view
+      startPosition?: number; // For arcs
+      endPosition?: number;   // For arcs
+      label: string;
+      color: string;
+    }> = [];
+
+    // Filter activities based on visible months
+    const visibleActivities = isFilteredView
+      ? activities.filter(isActivityVisible)
+      : activities;
+
+    visibleActivities.forEach(activity => {
+      const focusArea = focusAreas.find(fa => fa.id === activity.focus_area_id);
+      const color = focusArea?.color || '#6b7280';
+
+      if (activity.start_date && activity.end_date && activity.start_date !== activity.end_date) {
+        // Date range - show as arc
+        const startPos = dateToYearPosition(activity.start_date);
+        const endPos = dateToYearPosition(activity.end_date);
+        items.push({
+          activity,
+          type: 'arc',
+          startPosition: startPos,
+          endPosition: endPos,
+          label: activity.title,
+          color,
         });
       } else if (activity.start_date) {
-        // Use start_date for positioning
-        const dateObj = new Date(activity.start_date);
-        const monthIndex = dateObj.getMonth();
-        const day = dateObj.getDate();
-        const monthShort = MONTHS[monthIndex].shortName.toLowerCase();
-        const list = map.get(monthIndex) || [];
-        list.push({ activity, label: `${activity.title}, ${day}e ${monthShort}` });
-        map.set(monthIndex, list);
-      }
-      // Skip activities without a date or weeks
-    });
-    return map;
-  }, [filteredActivities]);
+        // Single date - show as dot
+        const pos = dateToYearPosition(activity.start_date);
+        const angle = dateToAngle(activity.start_date);
+        const date = new Date(activity.start_date);
+        const day = date.getDate();
+        const monthShort = MONTHS[date.getMonth()].shortName.toLowerCase();
 
+        if (angle !== null) {
+          items.push({
+            activity,
+            type: 'dot',
+            yearPosition: pos,
+            angle,
+            label: `${activity.title}, ${day} ${monthShort}`,
+            color,
+          });
+        }
+      } else if (activity.weeks.length > 0) {
+        // Multiple weeks - show multiple dots
+        activity.weeks.forEach(week => {
+          // Convert week to approximate year position
+          const pos = (week - 0.5) / 52;
+          const approxMonth = Math.floor(pos * 12);
+
+          // Skip if not in visible months
+          if (isFilteredView && !visibleMonths!.includes(Math.min(11, approxMonth))) {
+            return;
+          }
+
+          // Calculate angle for filtered view
+          const posInMonth = (pos * 12) - approxMonth;
+          const angle = getFilteredAngle(approxMonth, posInMonth);
+
+          items.push({
+            activity,
+            type: 'dot',
+            yearPosition: pos,
+            angle,
+            label: `${activity.title}, v${week}`,
+            color,
+          });
+        });
+      }
+    });
+
+    return items;
+  }, [activities, focusAreas, isFilteredView, visibleMonths]);
+
+  // Group items by month for display
+  const itemsByMonth = useMemo(() => {
+    const map = new Map<number, typeof activityDisplayItems>();
+
+    activityDisplayItems.forEach(item => {
+      if (item.type === 'dot' && item.yearPosition !== undefined) {
+        const monthIndex = Math.floor(item.yearPosition * 12);
+        const validMonth = Math.max(0, Math.min(11, monthIndex));
+        const list = map.get(validMonth) || [];
+        list.push(item);
+        map.set(validMonth, list);
+      }
+    });
+
+    return map;
+  }, [activityDisplayItems]);
+
+  // Arc items (date ranges)
+  const arcItems = useMemo(() => {
+    return activityDisplayItems.filter(item => item.type === 'arc');
+  }, [activityDisplayItems]);
 
   return (
     <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
@@ -374,7 +393,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
         style={{ maxWidth: `${size * zoom}px` }}
       >
         <g transform={`translate(${radius},${radius})`}>
-          
+
           {/* Center Year/Month */}
           <circle
             r={centerRadius}
@@ -390,16 +409,14 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
             {centerText}
           </text>
           {hasActiveFilter && (
-            <>
-              <text
-                y={selectedMonth !== null ? 28 : 20}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="text-[9px] fill-sky-500 pointer-events-none font-medium"
-              >
-                ← Tillbaka
-              </text>
-            </>
+            <text
+              y={selectedMonth !== null ? 28 : 20}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="text-[9px] fill-sky-500 pointer-events-none font-medium"
+            >
+              ← Tillbaka
+            </text>
           )}
           {selectedMonth !== null && (
             <text
@@ -412,119 +429,17 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
             </text>
           )}
 
-          {/* Övrigt - Full year ring at innermost position */}
-          {ovrigtArea && (
-            <g
-              className="group cursor-pointer"
-              onClick={() => handleFocusAreaClick(ovrigtArea.id)}
-            >
-              <circle
-                r={(ovrigtInnerRadius + ovrigtOuterRadius) / 2}
-                fill="none"
-                stroke={ovrigtArea.color}
-                strokeWidth={ovrigtRingThickness}
-                className={`${
-                  selectedFocusAreaId === ovrigtArea.id
-                    ? 'opacity-60'
-                    : selectedFocusAreaId !== null
-                      ? 'opacity-20 group-hover:opacity-40'
-                      : 'opacity-30 group-hover:opacity-50'
-                } transition-opacity duration-300`}
-              />
-              {/* Label for Övrigt - positioned at bottom */}
-              <text
-                x={0}
-                y={(ovrigtInnerRadius + ovrigtOuterRadius) / 2 + 3}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="text-[8px] font-semibold fill-gray-500 uppercase tracking-wide pointer-events-none"
-              >
-                Ö
-              </text>
-            </g>
-          )}
-
-          {/* Focus Areas Layer */}
-          {focusAreaArcs.map((focusArea) => {
-            const path = createArcPath(focusArea);
-            const [x, y] = getArcCentroid(focusArea);
-
-            const angleDeg = Math.atan2(y, x) * (180 / Math.PI);
-            let textRot = angleDeg + 90;
-
-            if (angleDeg > 0 && angleDeg < 180) {
-              textRot -= 180;
-            }
-
-            // Calculate text size based on ring thickness
-            const ringSize = focusArea.outerRadius - focusArea.innerRadius;
-            const fontSize = ringSize < 40 ? 'text-[8px]' : 'text-xs';
-
-            // Split name for display - use shorter version for thin rings
-            let nameParts: string[];
-            if (ringSize < 40) {
-              // Abbreviate for thin rings
-              nameParts = [focusArea.name.split(' ').map(w => w[0]).join('')];
-            } else if (focusArea.name.includes('&')) {
-              nameParts = [focusArea.name.split('&')[0].trim(), '& ' + focusArea.name.split('&')[1].trim()];
-            } else {
-              nameParts = [focusArea.name];
-            }
-
-            // Determine selection state
-            const isSelected = selectedFocusAreaId === focusArea.id;
-            const isOtherSelected = selectedFocusAreaId !== null && !isSelected;
-
-            // Dynamic opacity based on selection state
-            let opacityClass = 'opacity-25 group-hover:opacity-40';
-            if (isSelected) {
-              opacityClass = 'opacity-60';
-            } else if (isOtherSelected) {
-              opacityClass = 'opacity-10 group-hover:opacity-25';
-            }
-
-            return (
-              <g
-                key={focusArea.id}
-                className="group cursor-pointer"
-                onClick={() => handleFocusAreaClick(focusArea.id)}
-              >
-                <path
-                  d={path || ""}
-                  fill={focusArea.adjustedColor}
-                  className={`${opacityClass} transition-opacity duration-300`}
-                  stroke={isSelected ? focusArea.color : "white"}
-                  strokeWidth={isSelected ? "3" : "2"}
-                />
-                <text
-                  transform={`translate(${x},${y}) rotate(${textRot})`}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className={`${fontSize} font-semibold pointer-events-none uppercase tracking-wide ${isOtherSelected ? 'fill-gray-400' : 'fill-gray-700'}`}
-                  style={{ textShadow: "0 1px 2px rgba(255,255,255,0.8)" }}
-                >
-                  {nameParts.map((part, i) => (
-                    <tspan key={i} x="0" dy={i === 0 ? (nameParts.length > 1 ? "-0.6em" : "0") : "1.2em"}>
-                      {part}
-                    </tspan>
-                  ))}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Months Layer - or Days Layer when month is selected */}
+          {/* Months Layer */}
           {selectedMonth !== null ? (
             // Show days of the selected month around the wheel
             (() => {
               const daysInMonth = new Date(year, selectedMonth + 1, 0).getDate();
               const dayAngleStep = (2 * Math.PI) / daysInMonth;
-              const startAngle = -Math.PI / 2; // Day 1 at top
+              const startAngle = -Math.PI / 2;
 
-              // Create arc generator for day segments
               const dayArcGen = arc<any>()
-                .innerRadius(focusAreasOuterRadius)
-                .outerRadius(monthRadius)
+                .innerRadius(monthInnerRadius)
+                .outerRadius(monthOuterRadius)
                 .padAngle(0.01)
                 .cornerRadius(2);
 
@@ -540,20 +455,17 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
                       endAngle: dayEndAngle + Math.PI / 2,
                     });
 
-                    // Calculate centroid for label
                     const midAngle = (dayStartAngle + dayEndAngle) / 2;
-                    const labelRadius = (focusAreasOuterRadius + monthRadius) / 2;
+                    const labelRadius = (monthInnerRadius + monthOuterRadius) / 2;
                     const x = Math.cos(midAngle) * labelRadius;
                     const y = Math.sin(midAngle) * labelRadius;
 
-                    // Rotate text to be readable
                     const angleDeg = midAngle * (180 / Math.PI);
                     let rotate = angleDeg + 90;
                     if (angleDeg > 90 || angleDeg < -90) {
                       rotate += 180;
                     }
 
-                    // Only show label for every 5th day or day 1
                     const showLabel = day === 1 || day % 5 === 0;
 
                     return (
@@ -582,10 +494,17 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
               );
             })()
           ) : (
-            // Normal months view
-            MONTHS.map((month) => {
-              const path = monthArcGen(month as any);
-              const [x, y] = monthArcGen.centroid(month as any);
+            // Months view (filtered or full year)
+            displayMonths.map((month, displayIndex) => {
+              // Create arc path for this month
+              const path = createMonthArc(displayIndex, displayMonths.length);
+
+              // Calculate centroid for label
+              const anglePerMonth = (2 * Math.PI) / displayMonths.length;
+              const midAngle = displayIndex * anglePerMonth + anglePerMonth / 2 - Math.PI / 2;
+              const labelRadius = (monthInnerRadius + monthOuterRadius) / 2;
+              const x = Math.cos(midAngle) * labelRadius;
+              const y = Math.sin(midAngle) * labelRadius;
 
               const angleDeg = Math.atan2(y, x) * (180 / Math.PI);
               let rotate = angleDeg + 90;
@@ -619,112 +538,142 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
             })
           )}
 
-          {/* Activities Layer - All as dots */}
+          {/* Activity Arcs (date ranges) */}
+          {selectedMonth === null && arcItems.map((item, arcIndex) => {
+            if (item.startPosition === undefined || item.endPosition === undefined) return null;
+
+            const arcRadius = activityRadius + arcIndex * 12;
+            const startAngle = getAngleFromYearPosition(item.startPosition) + d3AngleOffset;
+            const endAngle = getAngleFromYearPosition(item.endPosition) + d3AngleOffset;
+
+            const activityArcGen = arc<any>()
+              .innerRadius(arcRadius)
+              .outerRadius(arcRadius + 8)
+              .startAngle(startAngle)
+              .endAngle(endAngle)
+              .cornerRadius(4);
+
+            const path = activityArcGen({});
+            const [cx, cy] = activityArcGen.centroid({});
+
+            const handleMouseEnter = (e: React.MouseEvent) => {
+              setTooltip({
+                activity: item.activity,
+                x: e.clientX,
+                y: e.clientY,
+              });
+            };
+
+            return (
+              <g
+                key={`arc-${item.activity.id}-${arcIndex}`}
+                onClick={() => onActivityClick(item.activity)}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={() => setTooltip(null)}
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <path
+                  d={path || ""}
+                  fill={item.color}
+                  opacity={0.8}
+                />
+                {/* Label on arc */}
+                <text
+                  x={cx}
+                  y={cy}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="text-[8px] font-medium fill-gray-700 pointer-events-none"
+                  style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9)' }}
+                >
+                  {item.label.length > 15 ? item.label.slice(0, 15) + '...' : item.label}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Activity Dots */}
           {selectedMonth !== null ? (
-            // Month zoom mode - position activities by day of month
+            // Month zoom mode - position by day
             (() => {
-              const monthEntries = activitiesByMonth.get(selectedMonth) || [];
-              if (monthEntries.length === 0) return null;
+              const monthItems = itemsByMonth.get(selectedMonth) || [];
+              if (monthItems.length === 0) return null;
 
               const daysInMonth = new Date(year, selectedMonth + 1, 0).getDate();
-              const dayAngleStep = (2 * Math.PI) / daysInMonth;
-              const startAngle = -Math.PI / 2; // Day 1 at top
 
-              // Group activities by day
-              const activitiesByDay = new Map<number, typeof monthEntries>();
-              monthEntries.forEach(entry => {
+              // Group by day
+              const itemsByDay = new Map<number, typeof monthItems>();
+              monthItems.forEach(item => {
                 let day = 1;
-                if (entry.activity.start_date) {
-                  const date = new Date(entry.activity.start_date);
+                if (item.activity.start_date) {
+                  const date = new Date(item.activity.start_date);
                   if (date.getMonth() === selectedMonth) {
                     day = date.getDate();
                   }
-                } else if (entry.week) {
-                  // Approximate day from week number
-                  // Week 1 of month ≈ days 1-7, etc.
-                  const weekOfMonth = Math.ceil(entry.week - getWeekOfYear(new Date(year, selectedMonth, 1)) + 1);
-                  day = Math.min(Math.max(1, (weekOfMonth - 1) * 7 + 4), daysInMonth);
+                } else if (item.yearPosition !== undefined) {
+                  // Approximate day from year position
+                  const monthStart = selectedMonth / 12;
+                  const monthEnd = (selectedMonth + 1) / 12;
+                  const posInMonth = (item.yearPosition - monthStart) / (monthEnd - monthStart);
+                  day = Math.max(1, Math.min(daysInMonth, Math.ceil(posInMonth * daysInMonth)));
                 }
-                const list = activitiesByDay.get(day) || [];
-                list.push(entry);
-                activitiesByDay.set(day, list);
+                const list = itemsByDay.get(day) || [];
+                list.push(item);
+                itemsByDay.set(day, list);
               });
-
-              // Helper to get week of year
-              function getWeekOfYear(date: Date): number {
-                const start = new Date(date.getFullYear(), 0, 1);
-                const diff = date.getTime() - start.getTime();
-                return Math.ceil((diff / (1000 * 60 * 60 * 24) + start.getDay() + 1) / 7);
-              }
 
               return (
                 <g>
-                  {Array.from(activitiesByDay.entries()).map(([day, entries]) => {
-                    const dayAngle = startAngle + (day - 1) * dayAngleStep + dayAngleStep / 2;
+                  {Array.from(itemsByDay.entries()).map(([day, dayItems]) => {
+                    const dayAngle = -Math.PI / 2 + ((day - 0.5) / daysInMonth) * 2 * Math.PI;
 
-                    return entries.map((entry, idx) => {
-                      const { activity, week, label } = entry;
+                    return dayItems.map((item, idx) => {
+                      const dist = monthOuterRadius + 20 + idx * 18;
+                      const xDot = Math.cos(dayAngle) * dist;
+                      const yDot = Math.sin(dayAngle) * dist;
 
-                      const dist = eventLineEndRadius + idx * 18;
-                      const xText = Math.cos(dayAngle) * dist;
-                      const yText = Math.sin(dayAngle) * dist;
-
-                      const x1 = Math.cos(dayAngle) * eventLineStartRadius;
-                      const y1 = Math.sin(dayAngle) * eventLineStartRadius;
-
-                      // Determine text anchor based on position
                       let normalizedAngle = dayAngle;
                       while (normalizedAngle <= -Math.PI) normalizedAngle += 2 * Math.PI;
                       while (normalizedAngle > Math.PI) normalizedAngle -= 2 * Math.PI;
                       const isRightSide = normalizedAngle > -Math.PI / 2 && normalizedAngle < Math.PI / 2;
 
-                      const focusArea = focusAreas.find((fa) => fa.id === activity.focus_area_id);
-                      const dotColor = focusArea?.color || '#6b7280';
-
                       const handleMouseEnter = (e: React.MouseEvent) => {
                         setTooltip({
-                          activity,
+                          activity: item.activity,
                           x: e.clientX,
                           y: e.clientY,
                         });
                       };
 
-                      const key = week !== undefined ? `${activity.id}-w${week}` : activity.id;
-
-                      // Show day in label when zoomed
-                      const dayLabel = `${activity.title}, ${day}/${selectedMonth + 1}`;
-
                       return (
-                        <g key={key}>
+                        <g
+                          key={`${item.activity.id}-d${day}-${idx}`}
+                          onClick={() => onActivityClick(item.activity)}
+                          onMouseEnter={handleMouseEnter}
+                          onMouseLeave={() => setTooltip(null)}
+                          className="cursor-pointer hover:opacity-70 transition-opacity"
+                        >
                           {idx === 0 && (
                             <line
-                              x1={x1}
-                              y1={y1}
-                              x2={xText}
-                              y2={yText}
+                              x1={Math.cos(dayAngle) * monthOuterRadius}
+                              y1={Math.sin(dayAngle) * monthOuterRadius}
+                              x2={xDot}
+                              y2={yDot}
                               stroke="#d1d5db"
                               strokeWidth="1"
                               strokeDasharray="2,2"
                             />
                           )}
-                          <g
-                            onClick={() => onActivityClick(activity)}
-                            onMouseEnter={handleMouseEnter}
-                            onMouseLeave={() => setTooltip(null)}
-                            className="cursor-pointer hover:opacity-70 transition-opacity"
+                          <circle cx={xDot} cy={yDot} r={5} fill={item.color} />
+                          <text
+                            x={xDot + (isRightSide ? 8 : -8)}
+                            y={yDot}
+                            textAnchor={isRightSide ? 'start' : 'end'}
+                            dominantBaseline="middle"
+                            className="text-[11px] font-medium fill-gray-700"
                           >
-                            <circle cx={xText} cy={yText} r={5} fill={dotColor} />
-                            <text
-                              x={xText + (isRightSide ? 8 : -8)}
-                              y={yText}
-                              textAnchor={isRightSide ? 'start' : 'end'}
-                              dominantBaseline="middle"
-                              className="text-[11px] font-medium fill-gray-700"
-                              style={{ fontFamily: '"Inter", sans-serif' }}
-                            >
-                              {dayLabel}
-                            </text>
-                          </g>
+                            {item.label}
+                          </text>
                         </g>
                       );
                     });
@@ -733,115 +682,103 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
               );
             })()
           ) : (
-            // Normal mode - activities grouped by month
-            MONTHS.map((month) => {
-              const monthEntries = activitiesByMonth.get(month.index);
-              if (!monthEntries || monthEntries.length === 0) return null;
+            // Normal mode - dots positioned by actual date
+            (() => {
+              // Get all dot items and sort by angle
+              const allDotItems = activityDisplayItems
+                .filter(item => item.type === 'dot' && (item.angle !== undefined || item.yearPosition !== undefined))
+                .sort((a, b) => {
+                  const angleA = a.angle !== undefined ? a.angle : getAngleFromYearPosition(a.yearPosition || 0);
+                  const angleB = b.angle !== undefined ? b.angle : getAngleFromYearPosition(b.yearPosition || 0);
+                  return angleA - angleB;
+                });
 
-              const midAngleRad = getAngle(month.index) + (Math.PI / 12);
+              // Group items that are very close together (within ~5 degrees)
+              const groupedItems: Array<{ angle: number; items: typeof allDotItems }> = [];
+              const ANGLE_THRESHOLD = 0.1; // ~5.7 degrees in radians
 
-              const x1 = Math.cos(midAngleRad) * eventLineStartRadius;
-              const y1 = Math.sin(midAngleRad) * eventLineStartRadius;
-              const x2 = Math.cos(midAngleRad) * eventLineEndRadius;
-              const y2 = Math.sin(midAngleRad) * eventLineEndRadius;
+              allDotItems.forEach(item => {
+                // Use pre-calculated angle if available, otherwise calculate from year position
+                const angle = item.angle !== undefined ? item.angle : getAngleFromYearPosition(item.yearPosition || 0);
 
-              let normalizedAngle = midAngleRad;
-              while (normalizedAngle <= -Math.PI) normalizedAngle += 2 * Math.PI;
-              while (normalizedAngle > Math.PI) normalizedAngle -= 2 * Math.PI;
+                // Find existing group within threshold
+                const existingGroup = groupedItems.find(g => {
+                  return Math.abs(g.angle - angle) < ANGLE_THRESHOLD;
+                });
 
-              const isRightSide = normalizedAngle > -Math.PI / 2 && normalizedAngle < Math.PI / 2;
-
-              // Limit displayed activities to prevent overlap
-              const MAX_VISIBLE = 6;
-              const visibleEntries = monthEntries.slice(0, MAX_VISIBLE);
-              const hiddenCount = monthEntries.length - MAX_VISIBLE;
-              const baseSpacing = 16;
+                if (existingGroup) {
+                  existingGroup.items.push(item);
+                } else {
+                  groupedItems.push({ angle, items: [item] });
+                }
+              });
 
               return (
-                <g key={`activities-${month.index}`}>
-                  <line
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke="#9ca3af"
-                    strokeWidth="1"
-                    strokeDasharray="2,2"
-                  />
+                <g>
+                  {groupedItems.map((group, groupIndex) => {
+                    const angleRad = group.angle;
+                    const x1 = Math.cos(angleRad) * monthOuterRadius;
+                    const y1 = Math.sin(angleRad) * monthOuterRadius;
 
-                  {visibleEntries.map((entry, i) => {
-                    const { activity, week, label } = entry;
-                    const dist = eventLineEndRadius + i * baseSpacing;
-                    const xText = Math.cos(midAngleRad) * dist;
-                    const yText = Math.sin(midAngleRad) * dist;
+                    let normalizedAngle = angleRad;
+                    while (normalizedAngle <= -Math.PI) normalizedAngle += 2 * Math.PI;
+                    while (normalizedAngle > Math.PI) normalizedAngle -= 2 * Math.PI;
+                    const isRightSide = normalizedAngle > -Math.PI / 2 && normalizedAngle < Math.PI / 2;
 
-                    const focusArea = focusAreas.find((fa) => fa.id === activity.focus_area_id);
-                    const dotColor = focusArea?.color || '#6b7280';
-
-                    const handleMouseEnter = (e: React.MouseEvent) => {
-                      setTooltip({
-                        activity,
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    };
-
-                    const key = week !== undefined ? `${activity.id}-w${week}` : activity.id;
+                    const baseSpacing = 16;
 
                     return (
-                      <g
-                        key={key}
-                        onClick={() => onActivityClick(activity)}
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={() => setTooltip(null)}
-                        className="cursor-pointer hover:opacity-70 transition-opacity"
-                      >
-                        <circle cx={xText} cy={yText} r={4} fill={dotColor} />
+                      <g key={`group-${groupIndex}`}>
+                        <line
+                          x1={x1}
+                          y1={y1}
+                          x2={Math.cos(angleRad) * activityRadius}
+                          y2={Math.sin(angleRad) * activityRadius}
+                          stroke="#d1d5db"
+                          strokeWidth="1"
+                          strokeDasharray="2,2"
+                        />
 
-                        <text
-                          x={xText + (isRightSide ? 6 : -6)}
-                          y={yText}
-                          textAnchor={isRightSide ? 'start' : 'end'}
-                          dominantBaseline="middle"
-                          className="text-[10px] font-medium fill-gray-700"
-                          style={{ fontFamily: '"Inter", sans-serif' }}
-                        >
-                          {label}
-                        </text>
+                        {group.items.map((item, i) => {
+                          const dist = activityRadius + i * baseSpacing;
+                          const xDot = Math.cos(angleRad) * dist;
+                          const yDot = Math.sin(angleRad) * dist;
+
+                          const handleMouseEnter = (e: React.MouseEvent) => {
+                            setTooltip({
+                              activity: item.activity,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          };
+
+                          return (
+                            <g
+                              key={`${item.activity.id}-${i}`}
+                              onClick={() => onActivityClick(item.activity)}
+                              onMouseEnter={handleMouseEnter}
+                              onMouseLeave={() => setTooltip(null)}
+                              className="cursor-pointer hover:opacity-70 transition-opacity"
+                            >
+                              <circle cx={xDot} cy={yDot} r={4} fill={item.color} />
+                              <text
+                                x={xDot + (isRightSide ? 6 : -6)}
+                                y={yDot}
+                                textAnchor={isRightSide ? 'start' : 'end'}
+                                dominantBaseline="middle"
+                                className="text-[10px] font-medium fill-gray-700"
+                              >
+                                {item.label}
+                              </text>
+                            </g>
+                          );
+                        })}
                       </g>
                     );
                   })}
-
-                  {/* Show "+X more" indicator if there are hidden activities */}
-                  {hiddenCount > 0 && (
-                    <g
-                      onClick={() => handleMonthClick(month.index)}
-                      className="cursor-pointer hover:opacity-70"
-                    >
-                      {(() => {
-                        const dist = eventLineEndRadius + MAX_VISIBLE * baseSpacing;
-                        const xMore = Math.cos(midAngleRad) * dist;
-                        const yMore = Math.sin(midAngleRad) * dist;
-                        return (
-                          <>
-                            <circle cx={xMore} cy={yMore} r={10} fill="#e5e7eb" />
-                            <text
-                              x={xMore}
-                              y={yMore}
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                              className="text-[9px] font-bold fill-gray-600"
-                            >
-                              +{hiddenCount}
-                            </text>
-                          </>
-                        );
-                      })()}
-                    </g>
-                  )}
                 </g>
               );
-            })
+            })()
           )}
         </g>
       </svg>
@@ -852,7 +789,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
           className="fixed pointer-events-none z-[100] bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs"
           style={{
             left: Math.min(tooltip.x, window.innerWidth - 280),
-            top: Math.max(80, tooltip.y - 10), // Keep below navbar (80px from top minimum)
+            top: Math.max(80, tooltip.y - 10),
             transform: tooltip.y > 150 ? 'translateY(-100%)' : 'translateY(10px)',
           }}
         >

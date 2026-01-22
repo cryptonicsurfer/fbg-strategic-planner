@@ -18,8 +18,8 @@ export interface FocusArea {
   concept_id: string;
   name: string;
   color: string;
-  start_month: number | null;  // 0-11, nullable for theme-based
-  end_month: number | null;    // 0-11, nullable for theme-based
+  start_month: number | null;  // Deprecated - categories are no longer time-bound
+  end_month: number | null;    // Deprecated - categories are no longer time-bound
   sort_order: number;
   created_at?: string;
   updated_at?: string;

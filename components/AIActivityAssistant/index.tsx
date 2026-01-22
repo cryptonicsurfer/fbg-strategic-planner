@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { aiApi, activitiesApi } from '../../api/client';
+import { aiApi, activitiesApi } from '../../lib/client';
 import { GeneratedActivity, FocusArea, Activity } from '../../types';
 
 interface AIActivityAssistantProps {

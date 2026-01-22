@@ -13,8 +13,10 @@ const YearSelector: React.FC<YearSelectorProps> = ({
   onYearChange,
   onCopyYear,
 }) => {
-  // Show years from 2 years ago to 2 years ahead
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  // Show years centered around selectedYear, ensuring currentYear is always included
+  const minYear = Math.min(currentYear - 2, selectedYear - 2);
+  const maxYear = Math.max(currentYear + 2, selectedYear + 2);
+  const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i);
 
   return (
     <div className="flex items-center gap-2">

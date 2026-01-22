@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, FocusArea, ActivityStatus } from '../types';
 import { PURPOSE_OPTIONS, THEME_OPTIONS, STATUS_LABELS, getWeekNumber } from '../constants';
-import { aiApi } from '../api/client';
+import { aiApi } from '../lib/client';
 
 interface ActivityModalProps {
   activity: Activity | null;

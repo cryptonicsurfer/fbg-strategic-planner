@@ -122,15 +122,10 @@ export function matchFocusAreas(
 
 /**
  * Formats focus areas for inclusion in AI prompts.
+ * Categories are no longer time-bound - they can contain activities throughout the year.
  */
 export function formatFocusAreasForPrompt(focusAreas: FocusArea[]): string {
   return focusAreas
-    .map((fa) => {
-      const months =
-        fa.start_month !== null && fa.end_month !== null
-          ? ` (månad ${fa.start_month + 1}-${fa.end_month + 1})`
-          : ' (temabaserat)';
-      return `- ${fa.name}${months}`;
-    })
+    .map((fa) => `- ${fa.name}`)
     .join('\n');
 }

@@ -5,13 +5,14 @@ import SpreadsheetView from './components/SpreadsheetView';
 import ActivityModal from './components/ActivityModal';
 import AIReportModal from './components/AIReportModal';
 import AIActivityAssistant from './components/AIActivityAssistant';
-import ConceptSelector from './components/ConceptSelector';
+import CategoryFilter from './components/CategoryFilter';
+import TimePeriodFilter, { TIME_PERIODS } from './components/TimePeriodFilter';
 import ViewToggle from './components/ViewToggle';
 import YearSelector from './components/YearSelector';
 import CopyYearModal from './components/CopyYearModal';
 import ExportButton from './components/ExportButton';
 import LoginPage from './components/LoginPage';
-import { conceptsApi, activitiesApi, authApi } from './api/client';
+import { conceptsApi, activitiesApi, authApi } from './lib/client';
 import { Activity, FocusArea, StrategicConcept, ViewMode, User } from './types';
 
 const App: React.FC = () => {
@@ -37,6 +38,16 @@ const App: React.FC = () => {
   const [isAIActivityModalOpen, setIsAIActivityModalOpen] = useState(false);
   const [isCopyYearModalOpen, setIsCopyYearModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string | null>(null);
+
+  // Get visible months from selected time period
+  const visibleMonths = React.useMemo(() => {
+    if (!selectedTimePeriod) return undefined;
+    const allPeriods = [...TIME_PERIODS.halves, ...TIME_PERIODS.tertials, ...TIME_PERIODS.quarters];
+    const period = allPeriods.find(p => p.id === selectedTimePeriod);
+    return period?.months;
+  }, [selectedTimePeriod]);
 
   // --- Check Auth Status ---
   useEffect(() => {
@@ -121,12 +132,44 @@ const App: React.FC = () => {
     ? focusAreas.filter((fa) => fa.concept_id === selectedConceptId)
     : focusAreas;
 
-  const filteredActivities = selectedConceptId
+  // Filter by concept first
+  let filteredActivities = selectedConceptId
     ? activities.filter((a) => {
         const fa = focusAreas.find((f) => f.id === a.focus_area_id);
         return fa?.concept_id === selectedConceptId;
       })
     : activities;
+
+  // Then filter by selected categories (if any selected)
+  if (selectedCategoryIds.length > 0) {
+    filteredActivities = filteredActivities.filter((a) =>
+      selectedCategoryIds.includes(a.focus_area_id)
+    );
+  }
+
+  // --- Category Filter Handlers ---
+  const handleToggleCategory = (categoryId: string) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(categoryId)) {
+        // Remove from selection
+        return prev.filter((id) => id !== categoryId);
+      } else {
+        // Add to selection
+        return [...prev, categoryId];
+      }
+    });
+  };
+
+  const handleClearAllCategories = () => {
+    // When clicking "Alla" while all are selected, select only the first one
+    if (filteredFocusAreas.length > 0) {
+      setSelectedCategoryIds([filteredFocusAreas[0].id]);
+    }
+  };
+
+  const handleSelectAllCategories = () => {
+    setSelectedCategoryIds([]);
+  };
 
   // --- Handlers ---
   const handleActivityClick = (activity: Activity) => {
@@ -237,16 +280,6 @@ const App: React.FC = () => {
             />
           </div>
 
-          {/* Concept Selector (Desktop) */}
-          <div className="hidden lg:block">
-            <ConceptSelector
-              concepts={concepts}
-              selectedConceptId={selectedConceptId}
-              onSelect={setSelectedConceptId}
-              isLoading={isLoading}
-            />
-          </div>
-
           {/* View Toggle (Desktop) */}
           <div className="hidden md:block">
             <ViewToggle currentView={viewMode} onViewChange={setViewMode} />
@@ -320,41 +353,59 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Concept Selector */}
-      <div className="lg:hidden fixed top-[60px] left-0 right-0 z-30 px-4 py-2 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 overflow-x-auto">
-        <ConceptSelector
-          concepts={concepts}
-          selectedConceptId={selectedConceptId}
-          onSelect={setSelectedConceptId}
-          isLoading={isLoading}
-        />
-      </div>
-
       {/* Main Content Area */}
-      <main className="flex-1 flex items-center justify-center p-4 pt-28 lg:pt-24 overflow-hidden">
+      <main className="flex-1 flex flex-col items-center p-4 pt-24 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
           </div>
         ) : error ? (
-          <div className="text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <button
-              onClick={loadData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Försök igen
-            </button>
+          <div className="flex-1 flex items-center justify-center text-center">
+            <div>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={loadData}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Försök igen
+              </button>
+            </div>
           </div>
         ) : (
           <>
+            {/* Category Filter - shown in all views */}
+            {filteredFocusAreas.length > 0 && (
+              <div className="w-full max-w-6xl mb-4 px-2">
+                <CategoryFilter
+                  focusAreas={filteredFocusAreas}
+                  selectedCategoryIds={selectedCategoryIds}
+                  onToggleCategory={handleToggleCategory}
+                  onClearAll={handleClearAllCategories}
+                  onSelectAll={handleSelectAllCategories}
+                />
+              </div>
+            )}
+
+            {/* Time Period Filter - wheel view only */}
             {viewMode === 'wheel' && (
-              <Wheel
-                year={selectedYear}
-                activities={filteredActivities}
-                focusAreas={filteredFocusAreas}
-                onActivityClick={handleActivityClick}
-              />
+              <div className="w-full max-w-6xl mb-4 px-2">
+                <TimePeriodFilter
+                  selectedPeriod={selectedTimePeriod}
+                  onSelectPeriod={setSelectedTimePeriod}
+                />
+              </div>
+            )}
+
+            {viewMode === 'wheel' && (
+              <div className="flex-1 flex items-center justify-center w-full">
+                <Wheel
+                  year={selectedYear}
+                  activities={filteredActivities}
+                  focusAreas={filteredFocusAreas}
+                  onActivityClick={handleActivityClick}
+                  visibleMonths={visibleMonths}
+                />
+              </div>
             )}
             {viewMode === 'timeline' && (
               <Timeline
@@ -402,21 +453,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Legend (Wheel view only) */}
-      {viewMode === 'wheel' && filteredFocusAreas.length > 0 && (
-        <div className="fixed bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-sm border border-white/50 hidden md:block">
-          <h3 className="text-xs font-bold uppercase text-gray-400 mb-2">Fokusområden</h3>
-          <div className="space-y-2">
-            {filteredFocusAreas.map((fa) => (
-              <div key={fa.id} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: fa.color }} />
-                <span className="text-xs font-medium text-gray-600">{fa.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      
       {/* Modals */}
       <ActivityModal
         activity={selectedActivity}

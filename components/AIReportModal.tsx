@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { aiApi } from '../api/client';
+import { aiApi } from '../lib/client';
 import ReactMarkdown from 'react-markdown';
 
 interface AIReportModalProps {

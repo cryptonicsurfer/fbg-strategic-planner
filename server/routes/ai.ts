@@ -155,18 +155,13 @@ const formatDataForAI = (activities: any[], focusAreas: any[]) => {
     completed: 'Genomförd',
   };
 
-  const MONTHS = [
-    'Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni',
-    'Juli', 'Augusti', 'September', 'Oktober', 'November', 'December'
-  ];
-
   return JSON.stringify({
     activities: activities.map(a => {
       const fa = focusAreaMap.get(a.focus_area_id);
       return {
         title: a.title,
         description: a.description,
-        focusArea: fa?.name || 'Okänt',
+        category: fa?.name || 'Okänt',
         responsible: a.responsible,
         purpose: a.purpose,
         theme: a.theme,
@@ -177,12 +172,7 @@ const formatDataForAI = (activities: any[], focusAreas: any[]) => {
         weeks: a.weeks,
       };
     }),
-    focusAreas: focusAreas.map(fa => ({
-      name: fa.name,
-      months: fa.start_month !== null && fa.end_month !== null
-        ? `${MONTHS[fa.start_month]} - ${MONTHS[fa.end_month]}`
-        : 'Temabaserat',
-    })),
+    categories: focusAreas.map(fa => fa.name),
     summary: {
       totalActivities: activities.length,
       byStatus: {
@@ -260,12 +250,18 @@ router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, re
 
     const systemInstruction = `
       Du är en strategisk AI-assistent för en organisations verksamhetsplanering.
-      Du har tillgång till ett dataset av aktiviteter organiserade i fokusområden.
+      Du har tillgång till ett dataset av aktiviteter organiserade i kategorier.
+
+      Kategorierna är:
+      - Service & Kompetens
+      - Platsutveckling
+      - Etablering & Innovation
+      - Övrigt
 
       Svara på användarens frågor baserat på datan.
       Använd Markdown för att formatera svaret snyggt (listor, bold text, headers).
       Håll tonen professionell, insiktsfull och hjälpsam på svenska.
-      Om frågan handlar om en rapport, gruppera gärna datan logiskt.
+      Om frågan handlar om en rapport, gruppera gärna datan logiskt per kategori.
 
       Statusar:
       - Pågående: Aktivitet under planering
@@ -340,23 +336,23 @@ Du är en AI-assistent för Århjulet verksamhetsplanering.
 Din uppgift är att tolka användarens beskrivning och/eller bilder och extrahera aktiviteter.
 Om bilder bifogas, analysera dem noggrant för att hitta information om aktiviteter, datum, ansvariga, etc.
 
-TILLGÄNGLIGA FOKUSOMRÅDEN:
+TILLGÄNGLIGA KATEGORIER (aktiviteter kan ske när som helst under året i vilken kategori som helst):
 ${focusAreasContext}
 
 REGLER:
 1. Returnera en JSON-array med aktiviteter
-2. Varje aktivitet MÅSTE ha ett fokusområde från listan ovan (använd EXAKT namnet)
+2. Varje aktivitet MÅSTE ha en kategori från listan ovan (använd EXAKT namnet)
 3. Datum ska vara i YYYY-MM-DD format
 4. Veckonummer är 1-52
 5. Status är alltid "ongoing" för nya aktiviteter
-6. Om ingen tydlig matchning finns, välj det mest relevanta fokusområdet
+6. Om ingen tydlig matchning finns, välj den mest relevanta kategorin (använd "Övrigt" som sista utväg)
 
 OUTPUT FORMAT (endast JSON, ingen annan text):
 [
   {
     "title": "Aktivitetens namn",
     "description": "Beskrivning eller null",
-    "suggested_focus_area": "EXAKT namn från listan ovan",
+    "suggested_focus_area": "EXAKT namn från kategorilistan ovan",
     "start_date": "YYYY-MM-DD eller null",
     "end_date": "YYYY-MM-DD eller null",
     "weeks": [1, 2, 3],
@@ -622,14 +618,14 @@ Du är en AI-assistent för att tolka Excel-data och mappa till aktivitetsschema
 INFO-KOLUMNER I FILEN:
 ${preprocessed.infoColumnNames.join(', ')}
 
-TILLGÄNGLIGA FOKUSOMRÅDEN (använd EXAKT dessa namn):
+TILLGÄNGLIGA KATEGORIER (använd EXAKT dessa namn):
 ${focusAreasContext}
 
 DATAN HAR FÖRBEHANDLATS:
 - Kalenderkolumner har redan tolkats och konverterats till datum
 - Varje aktivitet visar "DATUM:" med de extraherade datumen i YYYY-MM-DD format
-- Varje aktivitet visar "SEKTION/FOKUSOMRÅDE:" med sektionsrubriken från Excel-filen
-- VIKTIGT: Sektionsrubriken anger vilket fokusområde aktiviteten tillhör!
+- Varje aktivitet visar "SEKTION/KATEGORI:" med sektionsrubriken från Excel-filen
+- VIKTIGT: Sektionsrubriken anger vilken kategori aktiviteten tillhör!
 
 REGLER:
 1. Returnera en JSON-array med en aktivitet per rad
@@ -640,22 +636,20 @@ REGLER:
    - "Tema" → theme (t.ex. "Bransch", "Tema", "Område")
    - "Målgrupp" → target_group
    - "Typ av aktivitet" → description
-3. FOKUSOMRÅDE: Matcha "SEKTION/FOKUSOMRÅDE" till närmaste fokusområde i listan:
-   - "Företagsbesök" → "Service & Kompetens" (eller närmaste match)
-   - "Mod att växa" → "Mod att växa"
-   - "Framtidssäkring av företag" → "Framtidssäkring av företag"
-   - "Falkenberg växer" eller "Falkenberg Växer" → "Falkenberg växer"
-   - "Övrigt" → välj mest passande baserat på aktivitetens innehåll
-   - Om osäker, använd "Service & Kompetens" som fallback
+3. KATEGORI: Matcha "SEKTION/KATEGORI" till närmaste kategori i listan:
+   - "Företagsbesök", "Service", "Kompetens" → "Service & Kompetens"
+   - "Plats", "Utveckling" → "Platsutveckling"
+   - "Etablering", "Innovation" → "Etablering & Innovation"
+   - Allt annat eller osäkert → "Övrigt"
 4. Använd datum från "DATUM:"-raden - de är redan i korrekt format
-5. suggested_focus_area MÅSTE alltid ha ett värde från fokusområdeslistan!
+5. suggested_focus_area MÅSTE alltid ha ett värde från kategorilistan!
 
 OUTPUT FORMAT (endast JSON):
 [
   {
     "title": "aktivitetens namn",
     "description": "typ av aktivitet eller beskrivning",
-    "suggested_focus_area": "EXAKT namn från fokusområdeslistan - OBLIGATORISKT",
+    "suggested_focus_area": "EXAKT namn från kategorilistan - OBLIGATORISKT",
     "start_date": "första datumet från DATUM eller null",
     "end_date": "sista datumet från DATUM eller null",
     "weeks": [veckonummer från DATUM],
@@ -783,7 +777,7 @@ NUVARANDE AKTIVITET:
 ${JSON.stringify({
   title: original.title,
   description: original.description,
-  focus_area: original.focus_area_name,
+  category: original.focus_area_name,
   start_date: original.start_date,
   end_date: original.end_date,
   weeks: original.weeks,
@@ -794,13 +788,13 @@ ${JSON.stringify({
   status: original.status,
 }, null, 2)}
 
-TILLGÄNGLIGA FOKUSOMRÅDEN:
+TILLGÄNGLIGA KATEGORIER:
 ${focusAreasContext}
 
 REGLER:
 1. Applicera användarens instruktion på aktiviteten
 2. Behåll alla fält som inte påverkas
-3. Om fokusområde ändras, använd EXAKT namn från listan
+3. Om kategori ändras, använd EXAKT namn från listan
 4. Returnera den modifierade aktiviteten + lista med ändringar
 
 OUTPUT FORMAT (endast JSON):

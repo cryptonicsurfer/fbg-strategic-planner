@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Activity, FocusArea, StrategicConcept } from '../types';
-import { activitiesApi } from '../api/client';
+import { activitiesApi } from '../lib/client';
 
 interface CopyYearModalProps {
   isOpen: boolean;

@@ -4,51 +4,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Århjulet ("Year Wheel") is a Swedish business planning calendar visualization app. It displays organizational events on either a circular year wheel or a horizontal timeline view, organized by tertials (4-month periods).
+Århjulet ("Year Wheel") is a Swedish business planning calendar visualization app for Business Falkenberg. It displays organizational activities on either a circular year wheel, horizontal timeline, or spreadsheet view.
 
 ## Commands
 
 ```bash
 npm install        # Install dependencies
-npm run dev        # Start dev server on port 3000
+npm run dev        # Start dev server (frontend on 3000, backend on 3001)
 npm run build      # Build for production
 npm run preview    # Preview production build
 ```
 
-## Environment Setup
+## Local Development Setup
 
-Create `.env.local` with:
-```
-GEMINI_API_KEY=your_key_here
+### Prerequisites
+1. Create `.env.local` with required environment variables (see `.env.local` for reference)
+2. PostgreSQL database runs on VPS in Docker - requires SSH tunnel for local development
+
+### SSH Tunnel for Database Access
+The PostgreSQL database runs on the VPS and is only accessible via localhost. To connect from local development:
+
+```bash
+# In a separate terminal, keep this running:
+ssh -L 5433:127.0.0.1:5433 glsfbg -N
 ```
 
-The Gemini API is used for the AI report feature that analyzes calendar events.
+This forwards local port 5433 to the VPS PostgreSQL. The `.env.local` DATABASE_URL uses `localhost:5433`.
+
+### Running Locally
+1. Start SSH tunnel (see above)
+2. Run `npm run dev` - starts both frontend (port 3000) and backend (port 3001)
 
 ## Architecture
 
 **Entry point:** `index.tsx` → `App.tsx`
 
-**State management:** React useState with localStorage persistence. Events are stored under the key `arhjul-events`.
+**Backend:** Express.js server in `server/` directory
+- PostgreSQL database via `pg` library
+- Directus CMS for authentication
+- Google Gemini AI for activity generation and reports
 
-**Views:**
-- `Wheel.tsx` - Circular SVG visualization using d3-shape for arc generation. Places January at 12 o'clock position with clockwise progression.
-- `Timeline.tsx` - Horizontal scrollable grid organized by tertials and months.
+**Frontend Views:**
+- `Wheel.tsx` - Circular SVG visualization using d3-shape. Supports time period filtering (quarters, tertials, halves)
+- `Timeline.tsx` - Horizontal scrollable grid organized by months
+- `SpreadsheetView.tsx` - Table view for editing activities
 
-**Data model (types.ts):**
-- `CalendarEvent` - Events with id, title, description, date (ISO), monthIndex (0-11), year
-- `TertialDef` - Three 4-month periods with color coding
-- `MonthDef` - Swedish month names
+**Data Model:**
+- `StrategicConcept` - Top-level grouping (currently one: "Fokusområden")
+- `FocusArea` - 4 categories: Service & Kompetens, Platsutveckling, Etablering & Innovation, Övrigt
+- `Activity` - Events with dates, weeks, responsible person, status, etc.
 
-**Constants (constants.ts):**
-- Three tertials: Service & Kompetens (Jan-Apr), Platsutveckling (May-Aug), Etablering & Innovation (Sep-Dec)
-- Swedish month definitions
+**Key Components:**
+- `CategoryFilter.tsx` - Filter by focus area (shown in all views)
+- `TimePeriodFilter.tsx` - Filter by time period (wheel view only): Kv1-4, T1-3, 1H/2H
+- `AIActivityAssistant/` - AI-powered activity creation from text/Excel
+- `AIReportModal.tsx` - AI-generated reports about activities
 
-**Services:**
-- `geminiService.ts` - Generates AI reports using Google's Gemini 2.5 Flash model
+## Deployment (VPS)
+
+The app runs on the VPS in Docker. To deploy changes:
+
+```bash
+ssh glsfbg
+cd fbg-planning
+git pull
+docker compose down
+docker compose up -d --build
+```
 
 ## Key Technical Details
 
 - Vite + React 19 + TypeScript
 - Path alias: `@/*` maps to project root
-- Styling: Tailwind CSS (utility classes throughout)
+- Styling: Tailwind CSS
 - The wheel SVG uses d3-shape's `arc()` generator with angle offset to align D3's coordinate system with the visual layout
+- Vite proxy forwards `/api/*` requests to backend server in development

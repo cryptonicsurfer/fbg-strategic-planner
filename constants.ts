@@ -76,17 +76,55 @@ export function getMonthFromWeek(week: number): number {
 }
 
 // ============================================
-// Legacy exports (deprecated)
+// Fixed Categories (Focus Areas)
 // ============================================
 
-/** @deprecated Use focus_areas from API instead */
+export interface CategoryDef {
+  name: string;
+  color: string;
+  description: string;
+}
+
+export const CATEGORIES: CategoryDef[] = [
+  {
+    name: 'Service & Kompetens',
+    color: '#93C5FD',
+    description: 'Fokus på service och kompetensutveckling',
+  },
+  {
+    name: 'Platsutveckling',
+    color: '#86EFAC',
+    description: 'Fokus på platsutveckling och fysiska miljöer',
+  },
+  {
+    name: 'Etablering & Innovation',
+    color: '#FCA5A5',
+    description: 'Fokus på etablering och innovation',
+  },
+  {
+    name: 'Övrigt',
+    color: '#9CA3AF',
+    description: 'Övriga aktiviteter',
+  },
+];
+
+// Helper to get category by name
+export function getCategoryByName(name: string): CategoryDef | undefined {
+  return CATEGORIES.find(c => c.name.toLowerCase() === name.toLowerCase());
+}
+
+// ============================================
+// Legacy exports (deprecated - kept for backwards compatibility)
+// ============================================
+
+/** @deprecated Use CATEGORIES instead */
 export const TERTIALS: TertialDef[] = [
   { id: 1, name: "Service & Kompetens", color: "#93C5FD", startMonth: 0, endMonth: 3 },
   { id: 2, name: "Platsutveckling", color: "#86EFAC", startMonth: 4, endMonth: 7 },
   { id: 3, name: "Etablering & Innovation", color: "#FCA5A5", startMonth: 8, endMonth: 11 },
 ];
 
-/** @deprecated Use activities from API instead */
+/** @deprecated Legacy initial events */
 const currentYear = new Date().getFullYear();
 
 export const INITIAL_EVENTS: CalendarEvent[] = [
