@@ -664,7 +664,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
                               strokeDasharray="2,2"
                             />
                           )}
-                          <circle cx={xDot} cy={yDot} r={5} fill={item.color} />
+                          <circle cx={xDot} cy={yDot} r={5} fill={item.color} stroke="#374151" strokeWidth="1.5" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
                           <text
                             x={xDot + (isRightSide ? 8 : -8)}
                             y={yDot}
@@ -760,7 +760,7 @@ const Wheel: React.FC<WheelProps> = ({ year, activities, focusAreas, onActivityC
                               onMouseLeave={() => setTooltip(null)}
                               className="cursor-pointer hover:opacity-70 transition-opacity"
                             >
-                              <circle cx={xDot} cy={yDot} r={4} fill={item.color} />
+                              <circle cx={xDot} cy={yDot} r={4} fill={item.color} stroke="#374151" strokeWidth="1.5" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
                               <text
                                 x={xDot + (isRightSide ? 6 : -6)}
                                 y={yDot}
