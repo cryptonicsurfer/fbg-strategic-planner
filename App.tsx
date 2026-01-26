@@ -416,38 +416,40 @@ const App: React.FC = () => {
               />
             )}
             {viewMode === 'spreadsheet' && (
-              <SpreadsheetView
-                year={selectedYear}
-                activities={filteredActivities}
-                focusAreas={filteredFocusAreas}
-                onActivityClick={handleActivityClick}
-                onActivityUpdate={async (activity) => {
-                  try {
-                    const updated = await activitiesApi.update(activity.id, activity);
-                    setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-                  } catch (err) {
-                    console.error('Failed to update activity:', err);
-                  }
-                }}
-                onAddActivity={(focusAreaId) => {
-                  const newActivity: Activity = {
-                    id: `new_${Date.now()}`,
-                    focus_area_id: focusAreaId,
-                    title: '',
-                    description: null,
-                    start_date: null,
-                    end_date: null,
-                    responsible: null,
-                    purpose: null,
-                    theme: null,
-                    target_group: null,
-                    status: 'ongoing',
-                    weeks: [],
-                  };
-                  setSelectedActivity(newActivity);
-                  setIsActivityModalOpen(true);
-                }}
-              />
+              <div className="flex-1 w-full max-w-full px-2">
+                <SpreadsheetView
+                  year={selectedYear}
+                  activities={filteredActivities}
+                  focusAreas={filteredFocusAreas}
+                  onActivityClick={handleActivityClick}
+                  onActivityUpdate={async (activity) => {
+                    try {
+                      const updated = await activitiesApi.update(activity.id, activity);
+                      setActivities((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+                    } catch (err) {
+                      console.error('Failed to update activity:', err);
+                    }
+                  }}
+                  onAddActivity={(focusAreaId) => {
+                    const newActivity: Activity = {
+                      id: `new_${Date.now()}`,
+                      focus_area_id: focusAreaId,
+                      title: '',
+                      description: null,
+                      start_date: null,
+                      end_date: null,
+                      responsible: null,
+                      purpose: null,
+                      theme: null,
+                      target_group: null,
+                      status: 'ongoing',
+                      weeks: [],
+                    };
+                    setSelectedActivity(newActivity);
+                    setIsActivityModalOpen(true);
+                  }}
+                />
+              </div>
             )}
           </>
         )}

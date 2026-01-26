@@ -392,7 +392,7 @@ const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Scrollable Container */}
       <div
         ref={scrollContainerRef}
