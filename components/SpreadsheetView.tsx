@@ -398,7 +398,7 @@ const SpreadsheetView: React.FC<SpreadsheetViewProps> = ({
         ref={scrollContainerRef}
         className="overflow-x-auto custom-scrollbar flex-1 relative"
       >
-        <table className="border-collapse min-w-max text-sm text-left">
+        <table className="border-separate border-spacing-0 min-w-max text-sm text-left">
           <thead className="sticky top-0 z-20 bg-gray-100 text-gray-700 font-semibold shadow-sm">
             {/* Month Header Row */}
             <tr>
