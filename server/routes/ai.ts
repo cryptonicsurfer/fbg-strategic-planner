@@ -153,6 +153,7 @@ const formatDataForAI = (activities: any[], focusAreas: any[]) => {
     ongoing: 'Pågående',
     decided: 'Beslutad',
     completed: 'Genomförd',
+    cancelled: 'Inställd',
   };
 
   return JSON.stringify({

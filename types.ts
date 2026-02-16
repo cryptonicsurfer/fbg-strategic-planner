@@ -25,7 +25,7 @@ export interface FocusArea {
   updated_at?: string;
 }
 
-export type ActivityStatus = 'ongoing' | 'decided' | 'completed';
+export type ActivityStatus = 'ongoing' | 'decided' | 'completed' | 'cancelled';
 
 export interface Activity {
   id: string;

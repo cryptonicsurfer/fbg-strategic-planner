@@ -51,12 +51,14 @@ export const STATUS_LABELS = {
   ongoing: 'Pågående',
   decided: 'Beslutad',
   completed: 'Genomförd',
+  cancelled: 'Inställd',
 } as const;
 
 export const STATUS_COLORS = {
   ongoing: '#F59E0B',    // Amber
   decided: '#3B82F6',    // Blue
   completed: '#10B981',  // Emerald
+  cancelled: '#EF4444',  // Red
 } as const;
 
 // ============================================
