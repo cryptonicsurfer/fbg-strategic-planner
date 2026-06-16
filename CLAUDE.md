@@ -42,7 +42,7 @@ This forwards local port 5433 to the VPS PostgreSQL. The `.env.local` DATABASE_U
 **Backend:** Express.js server in `server/` directory
 - PostgreSQL database via `pg` library
 - Directus CMS for authentication
-- Google Gemini AI for activity generation and reports
+- **Multi-provider AI** for activity generation and reports — Google Gemini + Mistral (EU). All 4 AI routes (`/report`, `/generate-activities`, `/parse-excel`, `/edit-activity` in `server/routes/ai.ts`) go through `server/services/llm.ts`. Provider is chosen per-request from the model id sent by the frontend dropdown (`lib/ai-models.ts` + `components/ModelSelect.tsx`); **default is `mistral-medium-3.5`** when nothing is selected. Mistral runs via the `openai` SDK pointed at `api.mistral.ai/v1` (same pattern as chat-app). Gemini is NOT removed — it comes back without a code change. Requires `MISTRAL_API_KEY` (and keeps `GEMINI_API_KEY`); both must be in `docker-compose.yml`'s `environment:` block to reach the container.
 
 **Frontend Views:**
 - `Wheel.tsx` - Circular SVG visualization using d3-shape. Supports time period filtering (quarters, tertials, halves)

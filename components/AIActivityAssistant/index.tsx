@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { aiApi, activitiesApi } from '../../lib/client';
 import { GeneratedActivity, FocusArea, Activity } from '../../types';
+import ModelSelect from '../ModelSelect';
+import { DEFAULT_MODEL } from '../../lib/ai-models';
 
 interface AIActivityAssistantProps {
   isOpen: boolean;
@@ -35,6 +37,7 @@ const AIActivityAssistant: React.FC<AIActivityAssistantProps> = ({
   const [creating, setCreating] = useState(false);
   const [images, setImages] = useState<ImagePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -144,6 +147,7 @@ const AIActivityAssistant: React.FC<AIActivityAssistantProps> = ({
         conceptId,
         year: currentYear,
         images: imageFiles.length > 0 ? imageFiles : undefined,
+        model,
       });
       setGeneratedActivities(result.activities);
       // Auto-select activities that don't need review
@@ -172,7 +176,7 @@ const AIActivityAssistant: React.FC<AIActivityAssistantProps> = ({
     setSelectedIndexes(new Set());
 
     try {
-      const result = await aiApi.parseExcel(file, conceptId, currentYear);
+      const result = await aiApi.parseExcel(file, conceptId, currentYear, model);
       setGeneratedActivities(result.activities);
       // Auto-select activities that don't need review
       const autoSelect = new Set<number>();
@@ -322,11 +326,14 @@ const AIActivityAssistant: React.FC<AIActivityAssistantProps> = ({
             <h2 className="text-xl font-semibold text-gray-800">AI Aktivitetsassistent</h2>
             <p className="text-xs text-gray-500">Skapa aktiviteter från text eller Excel-fil</p>
           </div>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-4">
+            <ModelSelect value={model} onChange={setModel} disabled={loading} />
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

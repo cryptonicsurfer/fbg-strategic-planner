@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Activity, FocusArea, ActivityStatus } from '../types';
 import { PURPOSE_OPTIONS, THEME_OPTIONS, STATUS_LABELS, getWeekNumber } from '../constants';
 import { aiApi } from '../lib/client';
+import ModelSelect from './ModelSelect';
+import { DEFAULT_MODEL } from '../lib/ai-models';
 
 interface ActivityModalProps {
   activity: Activity | null;
@@ -26,6 +28,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const [aiInstruction, setAiInstruction] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiChanges, setAiChanges] = useState<string[]>([]);
+  const [aiModel, setAiModel] = useState(DEFAULT_MODEL);
 
   useEffect(() => {
     if (activity) {
@@ -46,6 +49,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
       const result = await aiApi.editActivity({
         activityId: formData.id,
         instruction: aiInstruction,
+        model: aiModel,
       });
 
       // Apply the modified values
@@ -370,9 +374,12 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
               {aiEditOpen && (
                 <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-100">
-                  <p className="text-sm text-gray-600 mb-3">
-                    Beskriv vad du vill ändra, t.ex. &quot;Flytta till vecka 15&quot; eller &quot;Ändra ansvarig till MN&quot;
-                  </p>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <p className="text-sm text-gray-600">
+                      Beskriv vad du vill ändra, t.ex. &quot;Flytta till vecka 15&quot; eller &quot;Ändra ansvarig till MN&quot;
+                    </p>
+                    <ModelSelect value={aiModel} onChange={setAiModel} disabled={aiLoading} />
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"

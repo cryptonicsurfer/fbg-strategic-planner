@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { GoogleGenAI } from '@google/genai';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
 import pool from '../db.js';
 import { AuthenticatedRequest, verifyDirectusToken } from '../middleware/auth.js';
 import { matchFocusArea, formatFocusAreasForPrompt } from '../services/focusAreaMatcher.js';
+import { generateText, stripJsonFences, type ContentPart } from '../services/llm.js';
 
 // Swedish month names to month numbers
 const SWEDISH_MONTHS: Record<string, number> = {
@@ -188,7 +188,7 @@ const formatDataForAI = (activities: any[], focusAreas: any[]) => {
 // POST /api/ai/report - Generate AI report
 router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { prompt, conceptId, year } = req.body;
+    const { prompt, conceptId, year, model } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -204,11 +204,6 @@ router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, re
 
     if (year && (typeof year !== 'number' || !Number.isInteger(year))) {
       return res.status(400).json({ error: 'Year must be an integer' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI service not configured' });
     }
 
     // Build query for activities
@@ -246,7 +241,6 @@ router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, re
     const focusAreas = focusAreasResult.rows;
 
     // Generate AI response
-    const ai = new GoogleGenAI({ apiKey });
     const dataContext = formatDataForAI(activities, focusAreas);
 
     const systemInstruction = `
@@ -270,16 +264,13 @@ router.post('/report', verifyDirectusToken, async (req: AuthenticatedRequest, re
       - Genomförd: Avslutad aktivitet
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Kontext-data: ${dataContext}\n\nAnvändarens fråga: ${prompt}`,
-      config: {
-        systemInstruction: systemInstruction,
-      },
+    const text = await generateText({
+      model,
+      systemInstruction,
+      parts: [{ text: `Kontext-data: ${dataContext}\n\nAnvändarens fråga: ${prompt}` }],
     });
 
-    const text = response.text || 'Ingen analys kunde genereras.';
-    res.json({ report: text });
+    res.json({ report: text || 'Ingen analys kunde genereras.' });
   } catch (error) {
     console.error('AI Report Error:', error);
     res.status(500).json({ error: 'Failed to generate report' });
@@ -292,6 +283,7 @@ router.post('/generate-activities', verifyDirectusToken, uploadImages.array('ima
     const description = req.body.description || '';
     const conceptId = req.body.conceptId;
     const year = parseInt(req.body.year, 10);
+    const model = req.body.model;
     const images = req.files as Express.Multer.File[] | undefined;
 
     const hasImages = images && images.length > 0;
@@ -307,11 +299,6 @@ router.post('/generate-activities', verifyDirectusToken, uploadImages.array('ima
 
     if (!year || isNaN(year)) {
       return res.status(400).json({ error: 'År krävs' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI-tjänsten är inte konfigurerad' });
     }
 
     // Fetch focus areas
@@ -367,10 +354,9 @@ OUTPUT FORMAT (endast JSON, ingen annan text):
 Tolka beskrivningen och bilderna noggrant. Om datum/veckor nämns, beräkna korrekta värden för år ${year}.
 `;
 
-    const ai = new GoogleGenAI({ apiKey });
-
-    // Build content parts
-    const contentParts: any[] = [];
+    // Build content parts (Gemini-style; the LLM service maps images to the
+    // right shape per provider — Mistral medium 3.5 is vision-capable too).
+    const contentParts: ContentPart[] = [];
 
     // Add text description if provided
     if (hasDescription) {
@@ -392,20 +378,16 @@ Tolka beskrivningen och bilderna noggrant. Om datum/veckor nämns, beräkna korr
       }
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: contentParts,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const responseText = response.text || '[]';
+    const responseText = await generateText({
+      model,
+      systemInstruction,
+      parts: contentParts,
+      json: 'array',
+    }) || '[]';
     let parsedActivities: any[];
 
     try {
-      parsedActivities = JSON.parse(responseText);
+      parsedActivities = JSON.parse(stripJsonFences(responseText));
       if (!Array.isArray(parsedActivities)) {
         parsedActivities = [];
       }
@@ -456,6 +438,7 @@ router.post('/parse-excel', verifyDirectusToken, uploadExcel.single('file'), asy
     const file = req.file;
     const conceptId = req.body.conceptId;
     const year = parseInt(req.body.year, 10);
+    const model = req.body.model;
 
     if (!file) {
       return res.status(400).json({ error: 'Ingen fil uppladdad' });
@@ -463,11 +446,6 @@ router.post('/parse-excel', verifyDirectusToken, uploadExcel.single('file'), asy
 
     if (!year || isNaN(year)) {
       return res.status(400).json({ error: 'År krävs' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI-tjänsten är inte konfigurerad' });
     }
 
     // Parse Excel file
@@ -662,21 +640,16 @@ OUTPUT FORMAT (endast JSON):
 ]
 `;
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Tolka följande förbehandlade Excel-data och returnera aktiviteter:\n\n${formattedActivities}`,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const responseText = response.text || '[]';
+    const responseText = await generateText({
+      model,
+      systemInstruction,
+      parts: [{ text: `Tolka följande förbehandlade Excel-data och returnera aktiviteter:\n\n${formattedActivities}` }],
+      json: 'array',
+    }) || '[]';
     let parsedActivities: any[];
 
     try {
-      parsedActivities = JSON.parse(responseText);
+      parsedActivities = JSON.parse(stripJsonFences(responseText));
       if (!Array.isArray(parsedActivities)) {
         parsedActivities = [];
       }
@@ -731,7 +704,7 @@ OUTPUT FORMAT (endast JSON):
 // POST /api/ai/edit-activity - Edit activity with AI
 router.post('/edit-activity', verifyDirectusToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { activityId, instruction } = req.body;
+    const { activityId, instruction, model } = req.body;
 
     if (!activityId || typeof activityId !== 'string') {
       return res.status(400).json({ error: 'Aktivitets-ID krävs' });
@@ -743,11 +716,6 @@ router.post('/edit-activity', verifyDirectusToken, async (req: AuthenticatedRequ
 
     if (instruction.length > 2000) {
       return res.status(400).json({ error: 'Instruktion får inte överstiga 2000 tecken' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI-tjänsten är inte konfigurerad' });
     }
 
     // Fetch the activity
@@ -817,21 +785,16 @@ OUTPUT FORMAT (endast JSON):
 }
 `;
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Instruktion: ${instruction}`,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const responseText = response.text || '{}';
+    const responseText = await generateText({
+      model,
+      systemInstruction,
+      parts: [{ text: `Instruktion: ${instruction}` }],
+      json: 'object',
+    }) || '{}';
     let parsed: any;
 
     try {
-      parsed = JSON.parse(responseText);
+      parsed = JSON.parse(stripJsonFences(responseText));
     } catch {
       console.error('Failed to parse AI response:', responseText);
       return res.status(500).json({ error: 'Kunde inte tolka AI-svaret' });

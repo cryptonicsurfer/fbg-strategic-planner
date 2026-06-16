@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { aiApi } from '../lib/client';
 import ReactMarkdown from 'react-markdown';
+import ModelSelect from './ModelSelect';
+import { DEFAULT_MODEL } from '../lib/ai-models';
 
 interface AIReportModalProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ const AIReportModal: React.FC<AIReportModalProps> = ({
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [model, setModel] = useState(DEFAULT_MODEL);
 
   const handleCopy = async () => {
     if (!response) return;
@@ -43,6 +46,7 @@ const AIReportModal: React.FC<AIReportModalProps> = ({
         prompt,
         conceptId,
         year: currentYear,
+        model,
       });
       setResponse(result.report);
     } catch (error) {
@@ -101,7 +105,7 @@ const AIReportModal: React.FC<AIReportModalProps> = ({
           {loading && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-               <p className="text-sm text-gray-500 animate-pulse">Analyserar data med Gemini...</p>
+               <p className="text-sm text-gray-500 animate-pulse">Analyserar data...</p>
             </div>
           )}
 
@@ -136,6 +140,9 @@ const AIReportModal: React.FC<AIReportModalProps> = ({
         </div>
 
         <div className="p-4 bg-white border-t border-gray-100 rounded-b-2xl">
+          <div className="flex justify-end mb-3">
+            <ModelSelect value={model} onChange={setModel} disabled={loading} />
+          </div>
           <div className="flex gap-2">
             <input
               type="text"

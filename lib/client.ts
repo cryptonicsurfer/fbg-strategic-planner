@@ -153,6 +153,7 @@ interface AIReportRequest {
   prompt: string;
   conceptId?: string | null;
   year?: number;
+  model?: string;
 }
 
 interface GenerateActivitiesRequest {
@@ -160,11 +161,13 @@ interface GenerateActivitiesRequest {
   conceptId?: string | null;
   year: number;
   images?: File[];
+  model?: string;
 }
 
 interface EditActivityRequest {
   activityId: string;
   instruction: string;
+  model?: string;
 }
 
 export const aiApi = {
@@ -181,6 +184,7 @@ export const aiApi = {
       formData.append('description', data.description);
       formData.append('year', String(data.year));
       if (data.conceptId) formData.append('conceptId', data.conceptId);
+      if (data.model) formData.append('model', data.model);
       data.images.forEach((img, i) => {
         formData.append('images', img);
       });
@@ -206,15 +210,17 @@ export const aiApi = {
         description: data.description,
         conceptId: data.conceptId,
         year: data.year,
+        model: data.model,
       }),
     });
   },
 
-  parseExcel: async (file: File, conceptId?: string | null, year?: number) => {
+  parseExcel: async (file: File, conceptId?: string | null, year?: number, model?: string) => {
     const formData = new FormData();
     formData.append('file', file);
     if (conceptId) formData.append('conceptId', conceptId);
     if (year) formData.append('year', String(year));
+    if (model) formData.append('model', model);
 
     const response = await fetch(`${API_BASE}/ai/parse-excel`, {
       method: 'POST',
