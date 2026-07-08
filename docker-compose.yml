@@ -1,5 +1,6 @@
 services:
   app:
+    mem_limit: 1024m
     build: .
     ports:
       - "127.0.0.1:3004:3000"
