@@ -108,11 +108,19 @@ meny med **"Alla koncept" som default**. Det räcker inte för två riktiga kale
 5. Excel-importen (`/parse-excel`) används knappt löpande (Paul 2026-08-21) — behålls i
    årshjulsappen, portas inte någon annanstans.
 
-## 4. Ordning, om det görs
+## 4. Ordning, om det görs — och varför detta är steg 1 av två
 
-1. §1 ritregel + ISO-veckor i de tre vyerna (liten PR, synlig vinst direkt).
+Paul (2026-08-21): **först allt detta i årshjulsappen, sedan eventuellt verksamhetsplanen in i
+CRM:et.** Rätt ordning, eftersom allt här är additivt och reversibelt — ingen migrering mellan
+system, ingen nedsida om steg 2 aldrig sker — medan steg 2 är en flytt. Dessutom städas datan
+(precision, odaterade, hoppande veckor) här, där man kan jämföra mot igår, så en senare flytt
+kopierar ren data. Det man *inte* får förrän steg 2: kopplingar företag ↔ aktivitet, agenten, en
+app. Steg 1 löser alltså inte silo-problemet — det ger beslutsunderlaget för om steg 2 är värt det.
+
+1. §1 ritregel + ISO-veckor i de tre vyerna (liten PR, rör ingen data, synlig vinst direkt).
 2. §1 modell + migrering (`precision`, `weeks[]` bort) — dry-run, diff, apply.
 3. §2 konceptväxlare + koncept "Media".
 4. §3 höjt tak + paste-chip + förhandsgranskning.
 
-Steg 1 kan göras utan att röra datan. Allt märkt potentiellt tills Paul säger bygg.
+~2–2½ dagar. Därefter en paus med verklig användning innan steg 2 (`crm-mistral-flow/specs/
+arshjul-tab.md`) avgörs. Allt märkt potentiellt tills Paul säger bygg.
