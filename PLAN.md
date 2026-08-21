@@ -49,9 +49,11 @@ Varför det är trasigt idag (verifierat i kod):
 - `components/Wheel.tsx` ~rad 276–310: datum först (olika start/slut → båge, lika → prick),
   fallback `weeks[]` → **en prick per vecka**.
 - `components/Timeline.tsx` ~rad 71–105 (`getActivitySegments`): `weeks[]` **först** → stapel över
-  veckorna, fallback datum. Dessutom en egen `getWeekNumber` (rad 17) — ersätt med
-  `date-fns`:s `getISOWeek`/`getISOWeekYear` (date-fns finns redan i projektet? **kontrollera
-  `package.json`**; om inte, är det den enda tillåtna nya deppen i denna PR, socket.dev först).
+  veckorna, fallback datum. Dessutom en egen `getWeekNumber` (rad 17) som inte är ISO 8601.
+  **`date-fns` finns inte i projektet** (kontrollerat 2026-08-21; deps är React, d3-shape m.fl.).
+  Skriv en egen ISO-veckohjälpare (~15 rader: torsdagsregeln, `isoWeek(date)` + `isoWeekYear(date)`
+  + `mondayOfIsoWeek(year, week)`) i `lib/activity-time.ts` med tester — hellre än en ny dep för
+  tre funktioner. Om du ändå vill ha date-fns: socket.dev först, exakt version, egen commit.
 - `components/SpreadsheetView.tsx` ~rad 596: 52 veckokryssrutor styrda av `weeks.includes(week)`.
 
 Gör i PR 1 (utan schemaändring — `precision` finns inte än, så härled den):
