@@ -86,9 +86,19 @@ meny med **"Alla koncept" som default**. Det räcker inte för två riktiga kale
 `year`, hämtar konceptets fokusområden och låter Mistral föreslå aktiviteter (`start_date`,
 `end_date`, `weeks`). Det som saknas för "klistra in hela verksamhetsplanen":
 
-1. **Teckentaket 10 000** — en verksamhetsplan i Word är troligen 20–60 k tecken. Höj till ~80 k
-   (Mistral Large tar det med marginal) *eller* chunka på rubriker och kör flera anrop; chunkning
-   ger stabilare JSON. Förslag: chunka.
+1. **Teckentaket 10 000 är en gammal artefakt, inte en gräns** (`server/routes/ai.ts:296`,
+   server-sidan; inget `maxLength` i frontend). Mistral Medium 3.5 (appens default) tar 128k
+   tokens ≈ 300–400k tecken svensk text. Höj server-guarden till ~250 000 tecken — en sanity-
+   gräns mot misstag, inte en produktgräns — och **chunka inte** som design; en hel
+   verksamhetsplan ska gå in i ett anrop så modellen ser helheten (kapitel, årsrytm, upprepningar).
+   Chunkning bara som fallback om JSON-svaret visar sig bli instabilt över en viss storlek.
+   **Paste-chip i stället för väggtext (Paul 2026-08-21):** klistrar man in mer än ~1 500 tecken
+   blir det inte text i rutan utan en liten **bilaga-chip** — ikon + "Inklistrad text · 42 310
+   tecken · ~8 sidor" + ett `×` för att ångra. Rutan förblir fri för egna instruktioner
+   ("skapa bara aktiviteter för hösten", "hoppa över kapitel 2"). Samma mönster som bilderna
+   redan har i assistenten, och samma som Claude/ChatGPT gör vid långa inklistringar. Klick på
+   chippen visar texten i en dialog (läs/redigera). Flera chips tillåts (flera dokument). Chippen
+   skickas som `description` precis som idag — ingen API-ändring utöver taket.
 2. **Förhandsgranska innan skapande** — tabell med föreslagna aktiviteter, kategori, datum/vecka,
    precision; bocka av, redigera, skapa. Aldrig direkt-skrivning av 40 rader från en prompt.
 3. **Output-schemat** följer §1: `start_date`, `end_date`, `precision` — inte `weeks`. Prompten
@@ -103,6 +113,6 @@ meny med **"Alla koncept" som default**. Det räcker inte för två riktiga kale
 1. §1 ritregel + ISO-veckor i de tre vyerna (liten PR, synlig vinst direkt).
 2. §1 modell + migrering (`precision`, `weeks[]` bort) — dry-run, diff, apply.
 3. §2 konceptväxlare + koncept "Media".
-4. §3 chunkad import med förhandsgranskning.
+4. §3 höjt tak + paste-chip + förhandsgranskning.
 
 Steg 1 kan göras utan att röra datan. Allt märkt potentiellt tills Paul säger bygg.
