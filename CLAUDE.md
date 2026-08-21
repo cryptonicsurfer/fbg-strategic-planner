@@ -79,3 +79,13 @@ docker compose up -d --build
 - Styling: Tailwind CSS
 - The wheel SVG uses d3-shape's `arc()` generator with angle offset to align D3's coordinate system with the visual layout
 - Vite proxy forwards `/api/*` requests to backend server in development
+
+## Planned work — start here
+
+- `PLAN.md` — step-by-step plan for "steg 1" (render rule, precision model, concept switcher
+  Verksamhetsplan | Media, Word import). **Gated on Paul's "bygg" per PR.** Read it before touching
+  `Wheel.tsx` / `Timeline.tsx` / `SpreadsheetView.tsx` / `server/routes/ai.ts`.
+- `specs/datum-vecka-och-koncept.md` — the why: dates are the truth, `weeks[]` goes away,
+  `precision: day|week`, one render rule for all views.
+- The eventual move of the verksamhetsplan into the CRM is a separate, later decision:
+  `../crm-mistral-flow/specs/arshjul-tab.md`. Never touch that repo from here.
