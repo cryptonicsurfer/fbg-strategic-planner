@@ -7,6 +7,22 @@ interface DirectusUser {
   email: string;
   first_name: string;
   last_name: string;
+  role?: { name?: string } | null;
+}
+
+// Rollspärr (2026-10-22): ett giltigt Directus-konto räcker inte — Directus har även externa konton
+// (Foodtrucker m.fl.) som annars kunde läsa och skriva i årsplanen. Kommaseparerad lista, skiftlägesokänslig.
+const ALLOWED_ROLES = (process.env.ALLOWED_DIRECTUS_ROLES || 'CRM användare,Administrator')
+  .split(',')
+  .map((r) => r.trim().toLowerCase())
+  .filter(Boolean);
+
+// Fälten vi hämtar från /users/me — role.name behövs för spärren.
+export const USER_FIELDS = 'id,email,first_name,last_name,role.name';
+
+export function hasAllowedRole(user: { role?: { name?: string } | null } | null | undefined): boolean {
+  const name = user?.role?.name?.trim().toLowerCase();
+  return !!name && ALLOWED_ROLES.includes(name);
 }
 
 interface DirectusUserResponse {
@@ -50,7 +66,7 @@ async function refreshAccessToken(refreshToken: string): Promise<DirectusRefresh
 // Helper to verify token and get user
 async function verifyAndGetUser(token: string): Promise<DirectusUser | null> {
   try {
-    const response = await fetch(`${DIRECTUS_URL}/users/me`, {
+    const response = await fetch(`${DIRECTUS_URL}/users/me?fields=${USER_FIELDS}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -122,6 +138,11 @@ export async function verifyDirectusToken(
       return res.status(401).json({ error: 'Invalid token' });
     }
 
+    if (!hasAllowedRole(user)) {
+      console.log('[Auth] Role not allowed:', user.role?.name ?? '(none)');
+      return res.status(403).json({ error: 'Ditt konto har inte behörighet till årsplanen' });
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -139,13 +160,13 @@ export async function optionalAuth(
 
   if (token) {
     try {
-      const response = await fetch(`${DIRECTUS_URL}/users/me`, {
+      const response = await fetch(`${DIRECTUS_URL}/users/me?fields=${USER_FIELDS}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json() as DirectusUserResponse;
-        req.user = data.data;
+        if (hasAllowedRole(data.data)) req.user = data.data;
       }
     } catch (error) {
       // Ignore auth errors for optional auth
