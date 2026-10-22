@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { hasAllowedRole, USER_FIELDS } from '../middleware/auth.js';
 
 const router = Router();
 const DIRECTUS_URL = process.env.DIRECTUS_URL || 'https://cms.businessfalkenberg.se';
@@ -18,6 +19,7 @@ interface DirectusUser {
   email: string;
   first_name: string;
   last_name: string;
+  role?: { name?: string } | null;
 }
 
 interface DirectusUserResponse {
@@ -57,6 +59,15 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Invalid response from authentication server' });
     }
 
+    // Rollen kontrolleras innan några cookies sätts.
+    const userResponse = await fetch(`${DIRECTUS_URL}/users/me?fields=${USER_FIELDS}`, {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    const userData = userResponse.ok ? await userResponse.json() as DirectusUserResponse : null;
+    if (!hasAllowedRole(userData?.data)) {
+      return res.status(403).json({ error: 'Ditt konto har inte behörighet till årsplanen' });
+    }
+
     // Set httpOnly cookies
     res.cookie('directus_access_token', access_token, {
       httpOnly: true,
@@ -73,12 +84,6 @@ router.post('/login', async (req: Request, res: Response) => {
       path: '/',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
-
-    // Fetch user info after login
-    const userResponse = await fetch(`${DIRECTUS_URL}/users/me`, {
-      headers: { Authorization: `Bearer ${access_token}` }
-    });
-    const userData = userResponse.ok ? await userResponse.json() as DirectusUserResponse : null;
 
     return res.json({ success: true, user: userData?.data });
   } catch (error) {
@@ -145,12 +150,13 @@ router.get('/check', async (req: Request, res: Response) => {
 
   if (accessToken) {
     try {
-      const response = await fetch(`${DIRECTUS_URL}/users/me`, {
+      const response = await fetch(`${DIRECTUS_URL}/users/me?fields=${USER_FIELDS}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
 
       if (response.ok) {
         const data = await response.json() as DirectusUserResponse;
+        if (!hasAllowedRole(data.data)) return res.json({ authenticated: false });
         return res.json({ authenticated: true, user: data.data });
       }
     } catch (error) {
